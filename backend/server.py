@@ -109,6 +109,78 @@ async def job_for_hospital(job_id: str, user: Dict[str, Any]) -> Dict[str, Any]:
     return job
 
 
+ALERT_MATCH_THRESHOLD = 75
+
+def _norm(v: Any) -> str:
+    return str(v or "").strip().lower()
+
+
+def is_job_live(job: Dict[str, Any]) -> bool:
+    return job.get("published") is True and job.get("approved") is True and job.get("status") == "active"
+
+
+def compute_match_score(nurse: Dict[str, Any], job: Dict[str, Any]) -> Optional[int]:
+    """Rule-based match mirroring the frontend algorithm (weights: dept 25,
+    location 20, experience 20, shift 15, qualification 10, salary 10)."""
+    checks = []
+    if job.get("department"):
+        deps = [_norm(d) for d in (nurse.get("departments") or [])]
+        checks.append((25, _norm(job["department"]) in deps))
+    if job.get("location"):
+        locs = [x for x in (_norm(nurse.get("preferred_location")), _norm(nurse.get("city"))) if x]
+        jl = _norm(job["location"])
+        checks.append((20, any(jl in loc or loc in jl for loc in locs)))
+    if job.get("shift"):
+        s = _norm(nurse.get("preferred_shift"))
+        checks.append((15, bool(s) and (s == _norm(job["shift"]) or s == "flexible" or _norm(job["shift"]) == "flexible")))
+    if job.get("experience_required") not in (None, ""):
+        try:
+            required = float(job["experience_required"])
+        except (TypeError, ValueError):
+            required = 0.0
+        try:
+            years = float(nurse.get("experience_years") or 0)
+        except (TypeError, ValueError):
+            years = 0.0
+        checks.append((20, years >= required))
+    if job.get("qualification_required"):
+        nq, jq = _norm(nurse.get("qualification")), _norm(job["qualification_required"])
+        checks.append((10, nq in jq or jq in nq))
+    if job.get("salary_max"):
+        try:
+            matched = not nurse.get("expected_salary") or float(job["salary_max"]) >= float(nurse["expected_salary"])
+        except (TypeError, ValueError):
+            matched = True
+        checks.append((10, matched))
+    total = sum(w for w, _ in checks)
+    if not total:
+        return None
+    return round(sum(w for w, m in checks if m) / total * 100)
+
+
+async def generate_job_alerts(job: Dict[str, Any]) -> None:
+    """Create in-app alerts for nurses whose profile matches a newly live job above the threshold."""
+    if not is_job_live(job):
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    async for profile in db.nurse_profiles.find({}, {"_id": 0}):
+        nurse_id = profile.get("owner_id")
+        if not nurse_id:
+            continue
+        score = compute_match_score(profile, job)
+        if score is None or score <= ALERT_MATCH_THRESHOLD:
+            continue
+        if await db.job_alerts.find_one({"nurse_id": nurse_id, "job_id": job["id"]}):
+            continue
+        await db.job_alerts.insert_one({
+            "id": str(uuid.uuid4()), "nurse_id": nurse_id, "job_id": job["id"],
+            "job_title": job.get("title"), "hospital_name": job.get("hospital_name"),
+            "department": job.get("department"), "location": job.get("location"),
+            "match_score": score, "read": False, "created_at": now,
+        })
+
+
+
 @api.post("/auth/register")
 async def register(body: Credentials):
     if body.account_type not in {"nurse", "hospital"}:
@@ -177,6 +249,19 @@ async def recruitment_nurses(user=Depends(current_user)):
     return await db.nurse_profiles.find({"recruitment_visible": True}, fields).to_list(1000)
 
 
+@api.get("/alerts")
+async def list_alerts(user=Depends(current_user)):
+    query = {} if user.get("is_admin") is True else {"nurse_id": user["id"]}
+    return await db.job_alerts.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+
+
+@api.post("/alerts/mark-read")
+async def mark_alerts_read(user=Depends(current_user)):
+    result = await db.job_alerts.update_many({"nurse_id": user["id"], "read": False}, {"$set": {"read": True}})
+    return {"updated": result.modified_count}
+
+
+
 @api.get("/{resource}")
 async def list_resource(resource: str, user=Depends(current_user)):
     if resource not in PRIVATE and resource != "job":
@@ -228,6 +313,8 @@ async def create(resource: str, body: ProfileInput, user=Depends(current_user)):
     data["id"] = str(uuid.uuid4())
     data["created_at"] = datetime.now(timezone.utc).isoformat()
     await db[collection_name(resource)].insert_one(data)
+    if resource == "job":
+        await generate_job_alerts(data)
     return clean(data)
 
 
@@ -268,8 +355,12 @@ async def update(resource: str, item_id: str, body: ProfileInput, user=Depends(c
     else: await get_owned(resource, item_id, user)
     for protected in {"id", "owner_id", "user_id", "nurse_id", "hospital_id", "job_id", "application_id"}:
         data.pop(protected, None)
+    was_live = resource == "job" and is_job_live(doc)
     await collection.update_one({"id": item_id}, {"$set": data})
-    return clean(await collection.find_one({"id": item_id}))
+    updated = clean(await collection.find_one({"id": item_id}))
+    if resource == "job" and not was_live and is_job_live(updated):
+        await generate_job_alerts(updated)
+    return updated
 
 
 @api.delete("/{resource}/{item_id}")

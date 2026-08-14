@@ -141,6 +141,25 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
   `tests/test_hospital_flows.py` covering hospital↔hospital isolation,
   snapshots, interview transitions, closed-job visibility); 100% frontend
   Playwright coverage of hospital flows incl. cross-role guards and mobile.
+- 2026-06: Job Alerts feature:
+  - Backend: `compute_match_score` (Python mirror of frontend rule-based
+    algorithm), `generate_job_alerts` hook fired when a job becomes live
+    (POST /api/job or PATCH transition to published+approved+active);
+    creates `job_alerts` docs {nurse_id, job_id, job_title, hospital_name,
+    department, location, match_score, read} for nurses matching strictly
+    above 75%. Deduped per (nurse_id, job_id). Draft jobs create no alerts.
+  - Endpoints (registered before generic /{resource} routes):
+    GET /api/alerts (nurse-scoped, admin sees all), POST
+    /api/alerts/mark-read (own alerts only). Clients cannot create alerts
+    (generic router rejects the resource).
+  - Frontend: nurse notifications bell fetches /api/alerts, shows
+    "{score}% match — {job} at {hospital}" items (emerald, Sparkles icon),
+    unread count badge, marks read on popover open, click navigates to
+    /nurse/jobs. Hospital bell unchanged (no /api/alerts calls).
+- 2026-06: Test pass (iteration_5): 42/42 backend pytest (35 regression + 7
+  new in `tests/test_job_alerts.py`: scoring, draft→live transition, dedupe,
+  RLS isolation, mark-read isolation); frontend Playwright E2E of the full
+  alert flow passed.
 
 ## Tested user actions (all passing)
 - Register/login/me; admin-account registration is blocked.
@@ -174,13 +193,14 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
 - P1: Admin dashboard (verify hospitals/nurses, approve jobs — would make the
   "Pending Approval" job state functional, moderate platform).
 - P2: refresh tokens, rate limiting, audit log for admin actions, signed URLs
-  / object storage for larger document files, job alerts, interview
-  reminders.
+  / object storage for larger document files, interview reminders, candidate
+  notes, alert generation pre-filter/index if nurse volume grows.
 
 ## Files of reference
-- `/app/backend/server.py` – all API + RLS logic (+ duplicate-application 409).
+- `/app/backend/server.py` – all API + RLS logic, job alerts engine
+  (compute_match_score/generate_job_alerts, /api/alerts endpoints).
 - `/app/backend/tests/` – test_security_live.py (10), test_nurse_flows.py
-  (12), test_hospital_flows.py (13).
+  (12), test_hospital_flows.py (13), test_job_alerts.py (7).
 - `/app/frontend/src/App.js` – routes + NurseArea/HospitalArea guards.
 - `/app/frontend/src/pages/nurse/*` and `/app/frontend/src/pages/hospital/*`.
 - `/app/frontend/src/components/nurse/*` and
