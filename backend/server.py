@@ -255,6 +255,13 @@ async def list_alerts(user=Depends(current_user)):
     return await db.job_alerts.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
 
 
+@api.get("/admin/users")
+async def admin_users(user=Depends(current_user)):
+    if user.get("is_admin") is not True:
+        raise HTTPException(403, "Admin access required")
+    return await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(5000)
+
+
 @api.post("/alerts/mark-read")
 async def mark_alerts_read(user=Depends(current_user)):
     result = await db.job_alerts.update_many({"nurse_id": user["id"], "read": False}, {"$set": {"read": True}})
@@ -293,10 +300,18 @@ async def create(resource: str, body: ProfileInput, user=Depends(current_user)):
         raise HTTPException(404, "Unknown resource")
     data = body.model_dump()
     if resource == "profile": data["user_id"] = user["id"]
-    elif resource in {"nurse_profile", "hospital", "saved_job", "document"}: data["owner_id"] = user["id"]
+    elif resource in {"nurse_profile", "hospital", "saved_job", "document"}:
+        data["owner_id"] = user["id"]
+        if resource in {"nurse_profile", "hospital"} and user.get("is_admin") is not True:
+            data.pop("verification_status", None)
+            data.pop("rejection_reason", None)
+            data["verification_status"] = "pending"
     elif resource == "job":
         if user.get("account_type") != "hospital" and user.get("is_admin") is not True: raise HTTPException(403, "Only hospitals can create jobs")
         data["hospital_id"] = hospital_key(user)
+        if user.get("is_admin") is not True:
+            hosp = await db.hospitals.find_one({"owner_id": user["id"]}, {"_id": 0, "verification_status": 1})
+            data["hospital_verified"] = bool(hosp and hosp.get("verification_status") == "verified")
     elif resource == "application":
         if user.get("account_type") != "nurse" and user.get("is_admin") is not True: raise HTTPException(403, "Only nurses can apply")
         data["nurse_id"] = user["id"]
@@ -355,11 +370,22 @@ async def update(resource: str, item_id: str, body: ProfileInput, user=Depends(c
     else: await get_owned(resource, item_id, user)
     for protected in {"id", "owner_id", "user_id", "nurse_id", "hospital_id", "job_id", "application_id"}:
         data.pop(protected, None)
+    if user.get("is_admin") is not True:
+        if resource in {"nurse_profile", "hospital"}:
+            data.pop("verification_status", None)
+            data.pop("rejection_reason", None)
+        if resource == "job":
+            hosp = await db.hospitals.find_one({"owner_id": user["id"]}, {"_id": 0, "verification_status": 1})
+            data["hospital_verified"] = bool(hosp and hosp.get("verification_status") == "verified")
+    if not data:
+        return doc
     was_live = resource == "job" and is_job_live(doc)
     await collection.update_one({"id": item_id}, {"$set": data})
     updated = clean(await collection.find_one({"id": item_id}))
     if resource == "job" and not was_live and is_job_live(updated):
         await generate_job_alerts(updated)
+    if resource == "hospital" and user.get("is_admin") is True and "verification_status" in data:
+        await db.jobs.update_many({"hospital_id": updated.get("owner_id")}, {"$set": {"hospital_verified": data["verification_status"] == "verified"}})
     return updated
 
 

@@ -31,10 +31,15 @@ export const JOB_STATE_META = {
   pending_approval: { label: "Pending Approval", cls: "bg-amber-50 text-amber-700 border-amber-200" },
   published: { label: "Published", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   closed: { label: "Closed", cls: "bg-red-50 text-red-700 border-red-200" },
+  rejected: { label: "Rejected", cls: "bg-red-50 text-red-700 border-red-200" },
 };
 
 export const jobState = (job) =>
-  job.status === "closed" ? "closed" : !job.published ? "draft" : !job.approved ? "pending_approval" : "published";
+  job.status === "closed" ? "closed"
+  : job.status === "rejected" ? "rejected"
+  : !job.published ? "draft"
+  : !job.approved ? "pending_approval"
+  : "published";
 
 export const INTERVIEW_STATUS_META = {
   scheduled: { label: "Scheduled", cls: "bg-cyan-50 text-cyan-700 border-cyan-200" },

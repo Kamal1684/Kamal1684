@@ -18,7 +18,7 @@ export default function Login() {
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [regForm, setRegForm] = useState({ email: "", password: "", account_type: "nurse" });
 
-  const homeFor = (u) => u.account_type === "nurse" ? "/nurse/dashboard" : u.account_type === "hospital" ? "/hospital/dashboard" : "/";
+  const homeFor = (u) => u.is_admin ? "/admin/dashboard" : u.account_type === "nurse" ? "/nurse/dashboard" : u.account_type === "hospital" ? "/hospital/dashboard" : "/";
 
   if (!loading && user) return <Navigate to={homeFor(user)} replace />;
 

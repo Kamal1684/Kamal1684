@@ -160,6 +160,37 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
   new in `tests/test_job_alerts.py`: scoring, draft→live transition, dedupe,
   RLS isolation, mark-read isolation); frontend Playwright E2E of the full
   alert flow passed.
+- 2026-06: Admin Console + backend hardening:
+  - Backend hardening (strengthens, never weakens RLS):
+    - Non-admins can no longer set/patch `verification_status` /
+      `rejection_reason` on nurse_profile & hospital (stripped server-side;
+      create defaults to "pending"). Self-verification impossible.
+    - `hospital_verified` on jobs is computed server-side from the
+      hospital's real verification_status on non-admin job create/patch
+      (badge cannot be forged).
+    - Admin PATCH of a hospital's verification_status propagates
+      hospital_verified to all that hospital's jobs.
+    - New admin-only `GET /api/admin/users` (email/account_type map, no
+      password_hash, 403 for non-admins).
+    - Job workflow gained "rejected" status (admin reject → unpublished +
+      rejection_reason shown on hospital Jobs page).
+  - Admin Console frontend (/admin/*, indigo theme, is_admin server flag
+    only): AdminLayout (sidebar Dashboard/Nurses/Hospitals/Job Approvals/
+    Applications/Verification/Settings, pending-actions bell, mobile nav);
+    Dashboard with 10 live stat cards; Nurses & Hospitals verification
+    tables with filters, detail dialogs showing documents (download),
+    Mark Under Review / Approve (confirm dialog) / Reject (reason dialog);
+    Job Approvals table with state filter, review dialog, Approve & Publish
+    (triggers alerts + public visibility), Reject with reason, Close;
+    read-only Applications overview with filters; unified Verification
+    Center (pending nurses/hospitals/jobs/documents with quick actions);
+    Settings (account, admin provisioning, matching config).
+  - Persistent admin account created for QA:
+    admin@nurseconnect-platform.com / AdminPass123! (test_credentials.md).
+- 2026-06: Test pass (iteration_6): 51/51 backend pytest (42 regression + 9
+  new in `tests/test_admin_flows.py`); 100% frontend Playwright checks
+  (admin login, access guards for nurse/hospital/unauth, approve/reject job
+  E2E incl. alerts + public visibility, mobile). Zero defects.
 
 ## Tested user actions (all passing)
 - Register/login/me; admin-account registration is blocked.
@@ -190,21 +221,25 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
 
 ## Prioritized backlog
 - P0: none.
-- P1: Admin dashboard (verify hospitals/nurses, approve jobs — would make the
-  "Pending Approval" job state functional, moderate platform).
-- P2: refresh tokens, rate limiting, audit log for admin actions, signed URLs
-  / object storage for larger document files, interview reminders, candidate
-  notes, alert generation pre-filter/index if nurse volume grows.
+- P1: none (all three consoles — Nurse, Hospital, Admin — complete).
+- P2: refresh tokens, rate limiting, audit log for admin actions, pagination
+  for /api/admin/users and admin tables, signed URLs / object storage for
+  larger document files, interview reminders, candidate notes, optional
+  strict admin-approval gate for job publishing (hospitals currently
+  self-publish by design), server.py modular refactor (routes/auth,
+  routes/admin, services/alerts).
 
 ## Files of reference
-- `/app/backend/server.py` – all API + RLS logic, job alerts engine
-  (compute_match_score/generate_job_alerts, /api/alerts endpoints).
+- `/app/backend/server.py` – all API + RLS logic, job alerts engine,
+  admin endpoints + verification hardening.
 - `/app/backend/tests/` – test_security_live.py (10), test_nurse_flows.py
-  (12), test_hospital_flows.py (13), test_job_alerts.py (7).
+  (12), test_hospital_flows.py (13), test_job_alerts.py (7),
+  test_admin_flows.py (9).
 - `/app/frontend/src/App.js` – routes + NurseArea/HospitalArea guards.
-- `/app/frontend/src/pages/nurse/*` and `/app/frontend/src/pages/hospital/*`.
-- `/app/frontend/src/components/nurse/*` and
-  `/app/frontend/src/components/hospital/*` (HospitalLayout, ScheduleDialog).
+- `/app/frontend/src/pages/nurse/*`, `/app/frontend/src/pages/hospital/*`,
+  `/app/frontend/src/pages/admin/*`.
+- `/app/frontend/src/components/nurse/*`, `components/hospital/*`,
+  `components/admin/*` (AdminLayout, AdminDialogs, adminShared).
 - `/app/frontend/src/lib/{api,match,status}.js` – axios client, match score +
   snapshots, status/job-state metadata.
 - `/app/memory/test_credentials.md` – credential handling notes.

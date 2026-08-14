@@ -72,6 +72,11 @@ export default function HospitalJobs() {
                     </div>
                     <Badge data-testid={`job-state-badge-${job.id}`} variant="outline" className={st.cls}>{st.label}</Badge>
                   </div>
+                  {job.status === "rejected" && job.rejection_reason && (
+                    <p data-testid={`job-rejection-reason-${job.id}`} className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
+                      Rejection reason: {job.rejection_reason}
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-slate-600">
                     {job.department && <span className="flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5 text-slate-400" /> {job.department}</span>}
                     {job.location && <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-slate-400" /> {job.location}</span>}
