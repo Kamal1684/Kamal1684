@@ -26,6 +26,22 @@ export const VERIFICATION_META = {
 export const appStatusMeta = (s) => APP_STATUS_META[s] || APP_STATUS_META.submitted;
 export const verificationMeta = (s) => VERIFICATION_META[s] || VERIFICATION_META.pending;
 
+export const JOB_STATE_META = {
+  draft: { label: "Draft", cls: "bg-slate-100 text-slate-600 border-slate-200" },
+  pending_approval: { label: "Pending Approval", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  published: { label: "Published", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  closed: { label: "Closed", cls: "bg-red-50 text-red-700 border-red-200" },
+};
+
+export const jobState = (job) =>
+  job.status === "closed" ? "closed" : !job.published ? "draft" : !job.approved ? "pending_approval" : "published";
+
+export const INTERVIEW_STATUS_META = {
+  scheduled: { label: "Scheduled", cls: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+  completed: { label: "Completed", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  cancelled: { label: "Cancelled", cls: "bg-red-50 text-red-700 border-red-200" },
+};
+
 export const fmtDate = (iso) => {
   if (!iso) return "—";
   const d = new Date(iso);

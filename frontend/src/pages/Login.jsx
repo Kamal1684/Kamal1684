@@ -18,19 +18,20 @@ export default function Login() {
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [regForm, setRegForm] = useState({ email: "", password: "", account_type: "nurse" });
 
-  if (!loading && user) return <Navigate to={user.account_type === "nurse" ? "/nurse/dashboard" : "/"} replace />;
+  const homeFor = (u) => u.account_type === "nurse" ? "/nurse/dashboard" : u.account_type === "hospital" ? "/hospital/dashboard" : "/";
+
+  if (!loading && user) return <Navigate to={homeFor(user)} replace />;
 
   const afterAuth = (u) => {
     toast.success("Welcome to NurseConnect");
-    navigate(u.account_type === "nurse" ? "/nurse/dashboard" : "/", { replace: true });
+    navigate(homeFor(u), { replace: true });
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
-      afterAuth(await login(loginForm.email, loginForm.password));
-    } catch (err) {
+      afterAuth(await login(loginForm.email, loginForm.password));    } catch (err) {
       toast.error(apiError(err, "Login failed"));
     } finally {
       setBusy(false);

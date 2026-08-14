@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bookmark } from "lucide-react";
 import api, { apiError } from "../../lib/api";
-import { computeMatch } from "../../lib/match";
+import { computeMatch, nurseSnapshot } from "../../lib/match";
 import { JobCard } from "../../components/nurse/JobCard";
 import { LoadingState, ErrorState, EmptyState } from "../../components/nurse/States";
 import { Button } from "../../components/ui/button";
@@ -46,7 +46,7 @@ export default function SavedJobs() {
   const apply = async (item) => {
     setBusyId(item.id);
     try {
-      await api.post("/application", { job_id: item.job_id, job_title: item.job_title, hospital_name: item.hospital_name, department: item.department });
+      await api.post("/application", { job_id: item.job_id, job_title: item.job_title, hospital_name: item.hospital_name, department: item.department, ...nurseSnapshot(profile) });
       setAppliedJobIds((s) => new Set([...s, item.job_id]));
       toast.success("Application submitted");
     } catch (e) {

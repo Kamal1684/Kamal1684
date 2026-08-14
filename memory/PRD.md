@@ -102,6 +102,45 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
   (10 security + 12 new nurse-flow tests in `tests/test_nurse_flows.py`),
   11/11 frontend Playwright flows incl. mobile responsiveness and
   nurse-to-nurse isolation.
+- 2026-06: Complete Hospital Dashboard / Hospital Console (frontend only, zero
+  backend changes):
+  - Protected /hospital/* area: unauth → /login; nurse accounts see
+    "Hospital access only"; admin (server-side is_admin) may enter.
+  - HospitalLayout (emerald theme): sidebar (Dashboard, Hospital Profile,
+    Jobs, Candidates, Interviews, Hired Nurses), topbar with hospital name,
+    verification badge, notifications (new applications + upcoming
+    interviews), logout, mobile Sheet nav (`hospital-mobile-nav-*`).
+  - Dashboard: real stats (active jobs, applications, shortlisted, upcoming
+    interviews, hired), recent jobs/applications lists, verification card.
+  - /hospital/profile: name, phone, address, city, state, pincode, type,
+    beds, license number; secure license upload/download/delete via
+    /api/document (doc_type hospital_license); verification badge.
+  - /hospital/jobs + /hospital/jobs/new + /hospital/jobs/:id/edit: full
+    validation (required fields, salary min≤max, openings≥1, future
+    deadline); Save Draft (published:false, status draft — hidden from
+    public) vs Submit & Publish (published+approved+active); job state
+    badges Draft/Pending Approval/Published/Closed; close job; applicant
+    counts; hospital_name/hospital_verified auto-attached to jobs.
+  - /hospital/candidates: applicants for own jobs only, sorted by
+    rule-based match %, job filter, candidate detail dialog with match
+    breakdown, Shortlist / Reject / Select / Schedule Interview actions.
+  - Interview scheduler dialog (date/time/type/link/location/notes,
+    past-date + missing-link validation); scheduling also moves the
+    application to interview_scheduled. /hospital/interviews: upcoming/past,
+    reschedule, cancel, mark completed.
+  - /hospital/hired: roster of Selected applications with contact info from
+    the nurse-supplied application snapshot.
+  - Nurse apply flow now attaches a nurse profile snapshot (name,
+    qualification, experience, departments, location, phone, verification
+    status, preferences) to POST /api/application so hospitals see candidate
+    info through their already-RLS-authorized application reads — no RLS
+    change needed.
+  - A11y: sr-only SheetTitle added to mobile nav sheets.
+- 2026-06: Full-stack test pass (iteration_4): 35/35 backend pytest
+  (10 security + 12 nurse-flow + 13 new hospital-flow tests in
+  `tests/test_hospital_flows.py` covering hospital↔hospital isolation,
+  snapshots, interview transitions, closed-job visibility); 100% frontend
+  Playwright coverage of hospital flows incl. cross-role guards and mobile.
 
 ## Tested user actions (all passing)
 - Register/login/me; admin-account registration is blocked.
@@ -132,20 +171,20 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
 
 ## Prioritized backlog
 - P0: none.
-- P1: Hospital dashboard (post jobs, review applications, update status,
-  schedule interviews via UI) and Admin dashboard (verification workflows).
+- P1: Admin dashboard (verify hospitals/nurses, approve jobs — would make the
+  "Pending Approval" job state functional, moderate platform).
 - P2: refresh tokens, rate limiting, audit log for admin actions, signed URLs
-  / object storage for larger document files, verification workflows UI.
+  / object storage for larger document files, job alerts, interview
+  reminders.
 
 ## Files of reference
 - `/app/backend/server.py` – all API + RLS logic (+ duplicate-application 409).
-- `/app/backend/tests/test_security_live.py` – live security test suite.
-- `/app/backend/tests/test_nurse_flows.py` – nurse/hospital flow tests.
-- `/app/frontend/src/App.js` – routes + NurseArea guard.
-- `/app/frontend/src/pages/nurse/*` – Dashboard, Profile, Jobs, SavedJobs,
-  Applications, Interviews.
-- `/app/frontend/src/components/nurse/*` – NurseLayout, Badges, JobCard,
-  States, NotificationsBell.
-- `/app/frontend/src/lib/{api,match,status}.js` – axios client, match score,
-  status metadata.
+- `/app/backend/tests/` – test_security_live.py (10), test_nurse_flows.py
+  (12), test_hospital_flows.py (13).
+- `/app/frontend/src/App.js` – routes + NurseArea/HospitalArea guards.
+- `/app/frontend/src/pages/nurse/*` and `/app/frontend/src/pages/hospital/*`.
+- `/app/frontend/src/components/nurse/*` and
+  `/app/frontend/src/components/hospital/*` (HospitalLayout, ScheduleDialog).
+- `/app/frontend/src/lib/{api,match,status}.js` – axios client, match score +
+  snapshots, status/job-state metadata.
 - `/app/memory/test_credentials.md` – credential handling notes.

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { LayoutDashboard, UserRound, Search, Bookmark, FileText, CalendarClock, LogOut, Menu, HeartPulse } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "../ui/sheet";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { NotificationsBell } from "./NotificationsBell";
@@ -79,6 +79,7 @@ export default function NurseLayout({ nurseName }) {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 px-4 py-6 flex flex-col">
+                <SheetTitle className="sr-only">Navigation menu</SheetTitle>
                 <Brand />
                 <NavLinks prefix="mobile" onNavigate={() => setMobileOpen(false)} />
                 <Button data-testid="mobile-logout-btn" variant="ghost" onClick={handleLogout} className="justify-start gap-3 text-slate-600 hover:text-red-600">

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { SearchX, Building2 } from "lucide-react";
 import api, { apiError } from "../../lib/api";
-import { computeMatch } from "../../lib/match";
+import { computeMatch, nurseSnapshot } from "../../lib/match";
 import { fmtSalary } from "../../lib/status";
 import { JobCard, JobMeta } from "../../components/nurse/JobCard";
 import { VerifiedHospitalBadge } from "../../components/nurse/Badges";
@@ -80,7 +80,7 @@ export default function Jobs() {
   const applyJob = async (job) => {
     setBusyId(job.id);
     try {
-      await api.post("/application", { job_id: job.id, ...snapshotFields(job) });
+      await api.post("/application", { job_id: job.id, ...snapshotFields(job), ...nurseSnapshot(profile) });
       setAppliedJobIds((s) => new Set([...s, job.id]));
       toast.success("Application submitted");
     } catch (e) {

@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import api from "../../lib/api";
 import { appStatusMeta, fmtDate } from "../../lib/status";
 
-export function NotificationsBell() {
+export function NotificationsBell({ role = "nurse" }) {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
@@ -13,15 +13,21 @@ export function NotificationsBell() {
       .then(([iv, apps]) => {
         const today = new Date().toISOString().slice(0, 10);
         const upcoming = (iv.data || [])
-          .filter((i) => (i.date || "") >= today)
-          .map((i) => ({ type: "interview", text: `Interview ${i.job_title ? `for ${i.job_title} ` : ""}on ${fmtDate(i.date)}${i.time ? ` at ${i.time}` : ""}`, icon: CalendarClock }));
-        const updates = (apps.data || [])
-          .filter((a) => a.status && a.status !== "submitted")
-          .map((a) => ({ type: "application", text: `Application ${a.job_title ? `for ${a.job_title} ` : ""}is now ${appStatusMeta(a.status).label}`, icon: FileText }));
+          .filter((i) => (i.date || "") >= today && i.status !== "cancelled")
+          .map((i) => ({ type: "interview", text: role === "hospital"
+            ? `Interview${i.nurse_name ? ` with ${i.nurse_name}` : ""} on ${fmtDate(i.date)}${i.time ? ` at ${i.time}` : ""}`
+            : `Interview ${i.job_title ? `for ${i.job_title} ` : ""}on ${fmtDate(i.date)}${i.time ? ` at ${i.time}` : ""}`, icon: CalendarClock }));
+        const updates = role === "hospital"
+          ? (apps.data || [])
+              .filter((a) => a.status === "submitted")
+              .map((a) => ({ type: "application", text: `New application${a.nurse_name ? ` from ${a.nurse_name}` : ""}${a.job_title ? ` for ${a.job_title}` : ""}`, icon: FileText }))
+          : (apps.data || [])
+              .filter((a) => a.status && a.status !== "submitted")
+              .map((a) => ({ type: "application", text: `Application ${a.job_title ? `for ${a.job_title} ` : ""}is now ${appStatusMeta(a.status).label}`, icon: FileText }));
         setItems([...upcoming, ...updates].slice(0, 8));
       })
       .catch(() => setItems([]));
-  }, []);
+  }, [role]);
 
   return (
     <Popover>

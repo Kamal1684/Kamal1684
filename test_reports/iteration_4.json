@@ -1,0 +1,45 @@
+{
+  "iteration": 4,
+  "summary": "Full-stack testing of NurseConnect Hospital Console (iteration 4). Backend regression: existing 22/22 tests (test_security_live.py 10 + test_nurse_flows.py 12) all pass — RLS is intact. Added /app/backend/tests/test_hospital_flows.py (13 tests) covering hospital-to-hospital isolation on job/application/interview, cross-hospital PATCH 403, nurse snapshot fields on applications, interview scheduling + status transition, closed job hidden from /api/public/jobs, nurse-cannot-PATCH-job, hospital profile create + hospital_license doc round-trip — all 13 pass. Frontend Playwright covered: unauth /hospital/dashboard → /login, hospital register lands on dashboard with 0-stats, profile save + persistence + verification Pending badge, job draft vs publish state badges (Draft/Published), candidates page shows nurse-snapshot (name, qualification, experience, location, verification pill, match-% badge, Applied status), shortlist changes status to Shortlisted, schedule interview dialog (date/time/type/link/notes) creates interview + moves app to interview_scheduled + shows on /hospital/interviews, Select puts app on /hospital/hired and increments Hired stat to 1, sidebar logout returns to /login, nurse→/hospital/dashboard shows 'Hospital access only' and hospital→/nurse/dashboard shows 'Nurse access only', mobile 390x844 hamburger opens sheet with hospital-mobile-nav-*, no horizontal overflow on dashboard, closed job disappears from /api/public/jobs.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ScheduleDialog / CandidateDetails dialog", "issues": ["Radix DialogContent warning: 'DialogContent requires a DialogTitle for the component to be accessible for screen reader users'. Non-blocking a11y warning only — fires on schedule-interview-dialog and/or candidate-details-dialog. Wrap the title in VisuallyHidden or add a real DialogTitle."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_hospital_flows.py",
+    "/app/backend/tests/test_nurse_flows.py",
+    "/app/backend/tests/test_security_live.py",
+    "/app/test_reports/pytest/hospital_flows.xml"
+  ],
+  "action_items": [
+    "OPTIONAL a11y: add DialogTitle (or VisuallyHidden-wrapped title) inside ScheduleDialog and candidate-details-dialog to silence Radix DialogContent warning."
+  ],
+  "critical_code_review_comments": [
+    "JobForm.save() sends published=false + approved=false + status='draft' on Save Draft, and published=true + approved=true + status='active' on Submit. Since backend requires published+approved+status=active for public visibility, this correctly hides drafts and there is no admin-approval gate — matches the note that 'Pending Approval' state is UI metadata only. Consistent with the request.",
+    "Nurse snapshot fields (nurse_name/qualification/experience_years/departments/location/city/phone/verification_status/preferred_shift/expected_salary/preferred_location/accommodation_required) are accepted by generic POST /api/application and returned by RLS-scoped GET /api/application to the owning hospital. Verified data integrity end-to-end in test_hospital_flows.test_hospital_a_reads_application_snapshot.",
+    "Hospital-to-hospital isolation is enforced by RLS: hospital B cannot list, GET, or PATCH hospital A's jobs / applications / interviews (403). Verified across 5 tests.",
+    "Job close via PATCH {status:'closed', published:false} correctly hides the job from /api/public/jobs and blocks new applications with 400/403/404 — confirmed in test_job_close_hides_from_public and test_nurse_cannot_apply_to_closed_job.",
+    "Cross-role guards work at the React router layer via HospitalArea / NurseArea (rendering data-testid=not-a-hospital-message / not-a-nurse-message). Since these are client-side guards, security still rides on backend RLS — which is correctly enforced.",
+    "Minor a11y: Radix DialogContent warning as noted above. Purely a screen-reader warning; no functional impact."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_hospital_flows.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (35/35: 10 security + 12 nurse-flow + 13 hospital-flow)",
+    "frontend": "100% (all requested hospital-console flows verified via Playwright)"
+  },
+  "test_credentials": "No seeded accounts. Ephemeral TEST_<uuid>@example.com / StrongPass123! nurse+hospital pairs are created inside each test. Admin bootstrap secret in /app/backend/.env if needed (not used this iteration).",
+  "seed_data_creation": "None persisted intentionally per user rule.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_hospital_flows.py + test_nurse_flows.py + test_security_live.py together give full RLS + flow coverage. When testing UI: hospital pages use HospitalLayout with prefixed hospital-mobile-nav-* testids (no duplicate-testid issue that nurse layout has). ScheduleDialog fires a Radix a11y warning about missing DialogTitle — it's non-blocking and shows on schedule-interview-dialog / candidate-details-dialog. Job 'Pending Approval' state is UI metadata only and not reachable via UI (Submit publishes directly) — do NOT flag as a bug. Applications created before iteration 4 have no nurse snapshot and will show 'Candidate' fallback on the Candidates page.",
+  "rca of the issue": "No bugs found in this iteration."
+}
