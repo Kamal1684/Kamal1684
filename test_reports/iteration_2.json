@@ -1,0 +1,40 @@
+{
+  "iteration": 2,
+  "summary": "All 10 comprehensive backend RLS security tests pass. Fixed HIGH-severity allowlist gap (validate_resource on GET/PATCH), unified hospital ownership key (hospital_key helper), added admin-bootstrap endpoint gated by server-only ADMIN_BOOTSTRAP_SECRET, narrowed the JWT exception catch. /api/status reachable unauthenticated. Frontend was not modified (scaffold only).",
+  "backend": {
+    "tests_passed": 10,
+    "tests_failed": 0,
+    "coverage": [
+      "test_admin_bootstrap_rejects_without_secret",
+      "test_register_rejects_admin_account_type",
+      "test_generic_resource_allowlist",
+      "test_unauthenticated_requires_token",
+      "test_profile_ownership_isolation",
+      "test_nurse_profile_and_saved_job_isolation",
+      "test_hospital_and_job_isolation_full_flow",
+      "test_document_privacy",
+      "test_admin_can_access_and_manage_everything",
+      "test_immutable_ownership_fields_on_patch"
+    ]
+  },
+  "policies_created": {
+    "profile": "user_id ownership, admin override",
+    "nurse_profile": "owner_id ownership, hospitals read only via /recruitment/nurses with redaction",
+    "hospital": "owner_id ownership, public read only via /public/hospitals",
+    "job": "hospital_id ownership; nurses may only read published+approved+active by id",
+    "application": "nurse_id owns; hospital owns via job.hospital_id; applicants cannot change status",
+    "saved_job": "owner_id, delete allowed by owner only",
+    "interview": "hospital creates for own jobs; nurse reads only for own applications",
+    "document": "owner_id only; hospitals never read except via explicit business flow (not exposed); admin override"
+  },
+  "entities_protected": ["profile", "nurse_profile", "hospital", "job", "application", "saved_job", "interview", "document"],
+  "remaining_limitations": [
+    "No refresh-token rotation.",
+    "No brute-force / rate limiting on auth.",
+    "Document endpoint holds metadata only; real file storage should use signed private URLs when introduced.",
+    "Frontend NurseConnect UI (dashboards, job search, application flow) not implemented – scaffold only. Backend security is enforced regardless."
+  ],
+  "action_items": [],
+  "seed_data_creation": "None. Tests create ephemeral TEST_ / ADMIN_ accounts only.",
+  "retest_needed": false
+}
