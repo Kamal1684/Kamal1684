@@ -191,6 +191,11 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
   new in `tests/test_admin_flows.py`); 100% frontend Playwright checks
   (admin login, access guards for nurse/hospital/unauth, approve/reject job
   E2E incl. alerts + public visibility, mobile). Zero defects.
+- 2026-06: UI fix — mobile/tablet nav drawer overlay made fully transparent
+  (`bg-black/80` → `bg-transparent` in `components/ui/sheet.jsx`). Sheet is
+  used only by the three console nav drawers; modal dialogs (dialog.jsx /
+  alert-dialog.jsx) keep their dark overlay. Outside-click close, X button,
+  and desktop sidebar unchanged. Verified on mobile 390px and tablet 768px.
 
 ## Tested user actions (all passing)
 - Register/login/me; admin-account registration is blocked.
