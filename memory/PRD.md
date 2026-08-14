@@ -68,6 +68,40 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
 - 2026-01: Comprehensive live pytest suite (`tests/test_security_live.py`)
   covering nurse↔nurse, hospital↔hospital and admin-positive scenarios (10/10
   passing).
+- 2026-06: Backend: duplicate-application prevention (POST /api/application
+  returns 409 if the nurse already applied to that job). No RLS changes.
+- 2026-06: Complete Nurse Dashboard frontend (React + Tailwind + shadcn):
+  - Auth: /login with Sign In / Register tabs (nurse or hospital account),
+    JWT stored in localStorage, axios interceptor, 401 auto-logout redirect.
+  - Protected /nurse/* area: unauthenticated → /login; hospital accounts see
+    "Nurse access only" message; admin (server-side is_admin) may also enter.
+  - NurseLayout: sidebar (Dashboard, My Profile, Find Jobs, Saved Jobs,
+    Applications, Interviews), sticky topbar with nurse name/avatar,
+    notifications bell (real data derived: upcoming interviews + status
+    updates), logout, mobile Sheet nav (testids prefixed `mobile-nav-*`).
+  - Dashboard: real stat cards (saved, active apps, shortlisted, upcoming
+    interviews), profile summary with completion % + verification badge
+    (Pending/Under Review/Verified/Rejected), recent applications, upcoming
+    interviews, empty states everywhere.
+  - Profile (/nurse/profile): personal, professional, preferences sections;
+    create/PATCH own nurse_profile; document upload (base64 ≤2MB) for
+    qualification certificate / registration certificate / ID proof via the
+    RLS-protected /api/document, with download + delete.
+  - Find Jobs (/nurse/jobs): GET /api/public/jobs, client-side filters
+    (title, department, qualification, location, salary, experience, shift,
+    accommodation), job details dialog, Save Job, Apply (duplicate blocked),
+    transparent rule-based match % badge with breakdown tooltip (dept 25,
+    location 20, experience 20, shift 15, qualification 10, salary 10).
+  - Saved Jobs: list own saved_jobs (snapshot fields), remove, apply.
+  - Applications: own applications with visual stepper Applied → Under
+    Review → Shortlisted → Interview Scheduled → Selected (+ Rejected/
+    Withdrawn pills). Nurse cannot change status (backend-enforced).
+  - Interviews: own interviews split Upcoming/Previous, details dialog with
+    meeting link / location / notes.
+- 2026-06: Full-stack test pass (iteration_3): 22/22 backend pytest
+  (10 security + 12 new nurse-flow tests in `tests/test_nurse_flows.py`),
+  11/11 frontend Playwright flows incl. mobile responsiveness and
+  nurse-to-nurse isolation.
 
 ## Tested user actions (all passing)
 - Register/login/me; admin-account registration is blocked.
@@ -98,12 +132,20 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
 
 ## Prioritized backlog
 - P0: none.
-- P1: build the NurseConnect frontend flows (auth, dashboards, job search,
-  applications, interviews, document uploads).
+- P1: Hospital dashboard (post jobs, review applications, update status,
+  schedule interviews via UI) and Admin dashboard (verification workflows).
 - P2: refresh tokens, rate limiting, audit log for admin actions, signed URLs
-  for document files, verification workflows UI.
+  / object storage for larger document files, verification workflows UI.
 
 ## Files of reference
-- `/app/backend/server.py` – all API + RLS logic.
+- `/app/backend/server.py` – all API + RLS logic (+ duplicate-application 409).
 - `/app/backend/tests/test_security_live.py` – live security test suite.
+- `/app/backend/tests/test_nurse_flows.py` – nurse/hospital flow tests.
+- `/app/frontend/src/App.js` – routes + NurseArea guard.
+- `/app/frontend/src/pages/nurse/*` – Dashboard, Profile, Jobs, SavedJobs,
+  Applications, Interviews.
+- `/app/frontend/src/components/nurse/*` – NurseLayout, Badges, JobCard,
+  States, NotificationsBell.
+- `/app/frontend/src/lib/{api,match,status}.js` – axios client, match score,
+  status metadata.
 - `/app/memory/test_credentials.md` – credential handling notes.

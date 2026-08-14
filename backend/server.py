@@ -218,6 +218,8 @@ async def create(resource: str, body: ProfileInput, user=Depends(current_user)):
         data.setdefault("status", "submitted")
         job = await db.jobs.find_one({"id": data.get("job_id"), "published": True, "approved": True, "status": "active"})
         if not job: raise HTTPException(403, "Applications are only allowed for active published jobs")
+        if await db.applications.find_one({"nurse_id": user["id"], "job_id": data.get("job_id")}):
+            raise HTTPException(409, "You have already applied to this job")
     elif resource == "interview":
         if user.get("account_type") != "hospital" and user.get("is_admin") is not True: raise HTTPException(403, "Only the job owner can create interviews")
         application = await db.applications.find_one({"id": data.get("application_id")}, {"_id": 0})

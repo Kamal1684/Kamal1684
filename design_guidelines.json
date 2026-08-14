@@ -1,0 +1,114 @@
+{
+  "brand": {
+    "name": "NurseConnect",
+    "tagline": "Connecting Dedicated Nurses with Top Healthcare Systems",
+    "persona": "E1 Clinical Precision & Warm Care Archetype",
+    "archetype": "ORGANIC & EARTHY / SWISS HYBRID - Clinical Professional, Warm, High Trust"
+  },
+  "typography": {
+    "heading_font": "Plus Jakarta Sans, sans-serif",
+    "body_font": "Inter, sans-serif",
+    "mono_font": "JetBrains Mono, monospace",
+    "google_fonts_import": "@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');",
+    "hierarchy": {
+      "h1_hero": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight",
+      "h2_section": "text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100",
+      "h3_subsection": "text-lg sm:text-xl font-semibold text-slate-900 dark:text-slate-100",
+      "h4_card_title": "text-base sm:text-lg font-semibold text-slate-800 dark:text-slate-200",
+      "body_text": "text-sm sm:text-base font-normal text-slate-600 dark:text-slate-300 leading-relaxed",
+      "label_text": "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400"
+    }
+  },
+  "colors": {
+    "primary_dark_slate": "#0F172A",
+    "primary_brand_blue": "#2563EB",
+    "primary_emerald_green": "#059669",
+    "bg_slate_light": "#F8FAFC",
+    "bg_card_white": "#FFFFFF",
+    "border_subtle": "#E2E8F0",
+    "status_verified_bg": "#ECFDF5",
+    "status_verified_text": "#047857",
+    "status_verified_border": "#A7F3D0",
+    "status_pending_bg": "#FEF3C7",
+    "status_pending_text": "#B45309",
+    "status_pending_border": "#FDE68A",
+    "status_under_review_bg": "#EFF6FF",
+    "status_under_review_text": "#1D4ED8",
+    "status_under_review_border": "#BFDBFE",
+    "status_rejected_bg": "#FEF2F2",
+    "status_rejected_text": "#B91C1C",
+    "status_rejected_border": "#FECACA",
+    "match_badge": {
+      "high_bg": "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+      "medium_bg": "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800",
+      "standard_bg": "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
+    }
+  },
+  "layout_and_spacing": {
+    "sidebar_width": "w-64 (256px) on desktop, collapsible sheet on mobile",
+    "topbar_height": "h-16 (64px) sticky with backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 z-40",
+    "dashboard_grid": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8",
+    "card_padding": "p-5 sm:p-6",
+    "section_gap": "space-y-6 sm:space-y-8",
+    "responsive_container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+  },
+  "component_guidelines": {
+    "sidebar": "Fixed or sticky left navigation bar containing Logo, Nav links with active states (Dashboard, My Profile, Find Jobs, Saved Jobs, Applications, Interviews), Nurse Quick Status summary at bottom.",
+    "topbar": "Contains Search trigger / Mobile hamburger trigger, Notification Bell with unread counter badge, Theme toggle (Light/Dark), Nurse Avatar + Name dropdown (View Profile, Settings, Logout).",
+    "stat_cards": "Bento-style metrics cards for: Profile Completion %, Verification Status Badge, Saved Jobs Count, Active Applications Count, Shortlisted Count, Upcoming Interviews Count. Includes trend/action callouts.",
+    "profile_summary_card": "Hero banner with avatar, nurse name, specialty badge (e.g. ICU RN / BSN), license ID, verification badge (Verified / Pending / Under Review / Rejected), completion progress bar, quick edit action.",
+    "job_card": "Clean card with hospital name, logo/avatar, job title, department, shift type, location, pay rate ($/hr or annual), transparent rule-based match % badge (e.g., 92% Match with Breakdown tooltip), Save button, Quick Apply button.",
+    "application_tracker_stepper": "Visual horizontal / vertical step tracker: Applied → Under Review → Shortlisted → Interview Scheduled → Selected (or Rejected / Withdrawn pill status).",
+    "interview_card": "Divided into 'Upcoming Interviews' and 'Past Interviews' tabs/sections. Displays date, time, interview type (Video / In-Person), hospital name, interviewer info, join link or location details, preparation notes.",
+    "filter_panel": "Sticky filter panel for Job Search with filters: Title / Keyword, Department, Qualification (RN, BSN, MSN, NP), Location, Salary Range, Experience Level, Shift Preference (Day/Night/PRN), Accommodation Provided toggle.",
+    "profile_edit_form": "Multi-tab or segmented edit page: Personal Info, Professional Info & Experience, Shift & Location Preferences, Document Upload (RN License, BLS/ACLS Certifications, Resume/CV, Immunization records) with status badges and re-upload capabilities."
+  },
+  "media_urls": {
+    "nurse_avatars": [
+      {
+        "description": "Professional female nurse in blue scrubs smiling",
+        "url": "https://images.unsplash.com/photo-1594824476967-48c8b964273f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2OTV8MHwxfHNlYXJjaHwxfHxudXJzZSUyMHBvcnRyYWl0fGVufDB8fHx8MTc4NjY5OTYyNXww&ixlib=rb-4.1.0&q=85"
+      },
+      {
+        "description": "Nurse standing in clinical setting",
+        "url": "https://images.unsplash.com/photo-1712239010193-62eff6fb13f3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2OTV8MHwxfHNlYXJjaHw0fHxudXJzZSUyMHBvcnRyYWl0fGVufDB8fHx8MTc4NjY5OTYyNXww&ixlib=rb-4.1.0&q=85"
+      }
+    ],
+    "hospital_images": [
+      {
+        "description": "Modern Medical Center Exterior",
+        "url": "https://images.pexels.com/photos/668300/pexels-photo-668300.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+      },
+      {
+        "description": "Hospital Emergency Care Entrance",
+        "url": "https://images.pexels.com/photos/263402/pexels-photo-263402.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+      },
+      {
+        "description": "Modern Medical Lobby",
+        "url": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwyfHxob3NwaXRhbCUyMGJ1aWxkaW5nfGVufDB8fHx8MTc4NjY5OTYyNXww&ixlib=rb-4.1.0&q=85"
+      }
+    ]
+  },
+  "data_testid_rules": {
+    "sidebar": "data-testid='sidebar-nav-[link_name]'",
+    "topbar": "data-testid='topbar-[element_name]'",
+    "stat_cards": "data-testid='stat-card-[stat_key]'",
+    "job_cards": "data-testid='job-card-[job_id]'",
+    "apply_button": "data-testid='apply-job-btn-[job_id]'",
+    "save_button": "data-testid='save-job-btn-[job_id]'",
+    "match_badge": "data-testid='match-percentage-badge-[job_id]'",
+    "application_status": "data-testid='application-status-[app_id]'",
+    "profile_form": "data-testid='profile-[field_id]-input'",
+    "document_upload": "data-testid='document-upload-[doc_type]'",
+    "verification_badge": "data-testid='nurse-verification-status-badge'"
+  },
+  "instructions_to_main_agent": [
+    "Ensure the application renders seamlessly on all viewports with responsive sidebar toggles.",
+    "Implement Lucide icons (`lucide-react`) for clean clinical UI indicators (Stethoscope, ShieldCheck, Clock, MapPin, DollarSign, Calendar, FileText, Bookmark, CheckCircle, AlertTriangle).",
+    "Use Framer Motion or pure Tailwind transitions for tab changes and step tracker animations without heavy distraction.",
+    "Support Light and Dark mode using Tailwind class-based dark mode toggle.",
+    "Provide empty states with clear CTAs (e.g. 'No Saved Jobs Yet - Find Jobs Now') when data arrays are empty.",
+    "Ensure all interactive elements have data-testid attributes adhering to test guidelines.",
+    "Provide rich realistic mock data fallback when backend FastAPI endpoints return empty lists or loading states."
+  ]
+}

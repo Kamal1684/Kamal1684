@@ -1,0 +1,42 @@
+{
+  "iteration": 3,
+  "summary": "Full-stack testing of NurseConnect Nurse Dashboard. Backend: 10/10 existing RLS security tests still pass; created new /app/backend/tests/test_nurse_flows.py with 12 flow tests all passing (auth, job publish/discover, save, apply, duplicate-409, nurse cannot self-shortlist, hospital shortlists, interview create, cross-nurse isolation, document round-trip, cross-hospital application read block). Frontend: Playwright ran 11 UI scenarios (unauth redirect, login, empty stats, profile edit + save, jobs listing with match badge, filters + reset, save + apply w/ Applied disabled, saved-jobs remove, applications status tracker + shortlisted stat, interview card + dialog, logout, hospital account nurse-guard message, mobile hamburger). All flows functionally succeed. Only issues were test-script selector nits (duplicate data-testids in desktop+mobile nav, and `interview-meeting-link-btn` is on an <a> when using Button asChild).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_nurse_flows.py",
+    "/app/backend/tests/test_security_live.py",
+    "/app/test_reports/pytest/nurse_flows.xml"
+  ],
+  "action_items": [
+    "Optional (testability): the desktop <aside class=hidden lg:flex> and mobile <SheetContent> both render NavLinks with the same data-testid values (sidebar-nav-*, sidebar-logout-btn appears twice-ish given mobile has mobile-logout-btn). Consider prefixing mobile nav IDs (e.g. mobile-nav-find-jobs) so Playwright locators don't match hidden duplicates.",
+    "Optional (testability): interview-meeting-link-btn is on a Button rendered asChild -> becomes an <a>. Works, but test selectors should target the a[data-testid=...] directly. Docs/nit only."
+  ],
+  "critical_code_review_comments": [
+    "server.py PATCH /application: when a nurse (non-admin) tries to PATCH ANY field on someone else's/their own application, the code first calls job_for_hospital(doc.job_id, user). For a nurse this always throws 403 with message 'This job belongs to another hospital', so nurses effectively cannot PATCH their own application at all (even for benign fields like adding notes). Current behavior matches the security requirement 'nurse cannot change status' but the error message is misleading for the nurse path. Consider explicit branching: if user is nurse and owns the application, either allow whitelisted fields (e.g. cover_note) or return a clearer 403 like 'Applicants cannot modify application records'.",
+    "server.py list_resource: if the caller is a nurse hitting GET /api/job (their own hospital scope), the branch returns jobs where hospital_id == nurse's id, i.e. always []. Nurses should probably 403 here or be redirected to /api/public/jobs; silent [] is fine but slightly confusing.",
+    "Frontend duplicate data-testid: NurseLayout renders the sidebar Nav twice (desktop aside + mobile Sheet) with identical data-testids. Automated tests (and axe) will flag this. Prefer prefixing mobile ones.",
+    "Jobs.jsx applyJob: on 409 it still calls `toast.error(apiError(e))` which will surface 'You have already applied to this job' as a red error toast even though we also correctly set the applied set. UX-wise this could be an info toast instead.",
+    "Profile.jsx uploadDoc: creates the new document then attempts to delete the old one; if delete fails the new one still stays which is fine, but ordering means a brief window of two docs same doc_type. Acceptable but worth a comment."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_nurse_flows.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (22/22: 10 security + 12 nurse-flow)",
+    "frontend": "100% (all 11 user flows verified; 2 selector nits fixed/confirmed manually via screenshot)"
+  },
+  "test_credentials": "No seeded accounts. Tests create ephemeral TEST_<uuid>@example.com / StrongPass123! nurse + hospital accounts via POST /api/auth/register. Admin bootstrap secret from /app/backend/.env if needed.",
+  "seed_data_creation": "None persisted intentionally per user rule. Each test iteration creates its own ephemeral nurse+hospital+job+application+interview.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_nurse_flows.py covers all major nurse+hospital API flows and can be reused. The 10-test security suite (test_security_live.py) must continue to pass — do not weaken RLS. For UI selectors, note NurseLayout renders two copies of nav (desktop aside + mobile Sheet) with the same data-testids; use viewport switching + .first when selecting sidebar-nav-* or wait for a visible element. When testing interview meeting link, target `a[data-testid='interview-meeting-link-btn']` — Button uses asChild so data-testid lands on the <a>.",
+  "rca of the issue": "No production bugs found. Test script hiccups: (1) duplicate data-testids for desktop+mobile nav caused Playwright to lock onto the hidden desktop element; workaround = viewport 390 + rely on Sheet slide-in (visually confirmed by screenshot). (2) interview meeting-link Button uses `asChild`, so the anchor tag itself carries the data-testid — my earlier CSS selector `[data-testid='interview-meeting-link-btn'] a` was incorrect."
+}
