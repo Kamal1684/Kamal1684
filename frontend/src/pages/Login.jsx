@@ -16,7 +16,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState("login");
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
-  const [regForm, setRegForm] = useState({ email: "", password: "", account_type: "nurse" });
+  const [regForm, setRegForm] = useState({ email: "", password: "", account_type: "nurse", mobile: "" });
 
   const homeFor = (u) => u.is_admin ? "/admin/dashboard" : u.account_type === "nurse" ? "/nurse/dashboard" : u.account_type === "hospital" ? "/hospital/dashboard" : "/";
 
@@ -42,7 +42,7 @@ export default function Login() {
     e.preventDefault();
     setBusy(true);
     try {
-      afterAuth(await register(regForm.email, regForm.password, regForm.account_type));
+      afterAuth(await register(regForm.email, regForm.password, regForm.account_type, regForm.mobile));
     } catch (err) {
       toast.error(apiError(err, "Registration failed"));
     } finally {
@@ -95,6 +95,14 @@ export default function Login() {
                 <div className="space-y-1.5">
                   <Label htmlFor="reg-password">Password (min 8 characters)</Label>
                   <Input data-testid="register-password-input" id="reg-password" type="password" required minLength={8} value={regForm.password} onChange={(e) => setRegForm({ ...regForm, password: e.target.value })} placeholder="••••••••" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="reg-mobile">Mobile number</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-10 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">+91</span>
+                    <Input data-testid="register-mobile-input" id="reg-mobile" type="tel" inputMode="numeric" required value={regForm.mobile} onChange={(e) => setRegForm({ ...regForm, mobile: e.target.value })} placeholder="10-digit mobile number" className="flex-1" />
+                  </div>
+                  <p data-testid="mobile-verification-note" className="text-xs text-amber-600">Verification pending — we'll verify your number later.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>I am a</Label>

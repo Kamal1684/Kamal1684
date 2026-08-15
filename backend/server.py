@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 import hashlib
 import logging
 import os
+import re
 import secrets
 import time
 import uuid
@@ -48,6 +49,29 @@ class Credentials(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
     account_type: str = "nurse"
+
+
+class RegisterInput(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
+    account_type: str = "nurse"
+    mobile: str
+
+
+def normalize_indian_mobile(raw: str) -> str:
+    """Validate & normalize an Indian (+91) mobile number to '+91XXXXXXXXXX'.
+    Raises HTTPException(400) with a clear message on invalid input."""
+    digits = re.sub(r"\D", "", raw or "")
+    if digits.startswith("0091"):
+        digits = digits[4:]
+    elif len(digits) == 12 and digits.startswith("91"):
+        digits = digits[2:]
+    elif len(digits) == 11 and digits.startswith("0"):
+        digits = digits[1:]
+    if not re.fullmatch(r"[6-9]\d{9}", digits):
+        raise HTTPException(status_code=400, detail="Enter a valid Indian mobile number: 10 digits starting 6-9 (optionally prefixed with +91).")
+    return "+91" + digits
+
 
 
 class ChangePasswordInput(BaseModel):
@@ -213,14 +237,17 @@ async def generate_job_alerts(job: Dict[str, Any]) -> None:
 
 
 @api.post("/auth/register")
-async def register(body: Credentials):
+async def register(body: RegisterInput):
     if body.account_type not in {"nurse", "hospital"}:
         raise HTTPException(400, "account_type must be nurse or hospital")
+    mobile = normalize_indian_mobile(body.mobile)
     if await db.users.find_one({"email": body.email.lower()}):
         raise HTTPException(409, "Email already registered")
-    user = {"id": str(uuid.uuid4()), "email": body.email.lower(), "password_hash": bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode(), "account_type": body.account_type, "is_admin": False, "created_at": datetime.now(timezone.utc).isoformat()}
+    if await db.users.find_one({"mobile": mobile}):
+        raise HTTPException(409, "Mobile number already registered")
+    user = {"id": str(uuid.uuid4()), "email": body.email.lower(), "password_hash": bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode(), "account_type": body.account_type, "mobile": mobile, "mobile_verified": False, "is_admin": False, "created_at": datetime.now(timezone.utc).isoformat()}
     await db.users.insert_one(user)
-    return {"id": user["id"], "email": user["email"], "account_type": user["account_type"]}
+    return {"id": user["id"], "email": user["email"], "account_type": user["account_type"], "mobile": user["mobile"], "mobile_verified": user["mobile_verified"]}
 
 
 @api.post("/auth/admin-bootstrap")
@@ -244,7 +271,7 @@ async def login(body: Credentials):
     if not user or not bcrypt.checkpw(body.password.encode(), user["password_hash"].encode()):
         raise HTTPException(401, "Invalid credentials")
     token = issue_token(user["id"])
-    return {"token": token, "user": {"id": user["id"], "email": user["email"], "account_type": user["account_type"], "is_admin": user.get("is_admin") is True}}
+    return {"token": token, "user": {"id": user["id"], "email": user["email"], "account_type": user["account_type"], "is_admin": user.get("is_admin") is True, "mobile": user.get("mobile"), "mobile_verified": user.get("mobile_verified") is True}}
 
 
 @api.post("/auth/change-password")
@@ -331,7 +358,7 @@ async def reset_password(body: ResetPasswordInput, request: Request):
 
 @api.get("/auth/me")
 async def me(user=Depends(current_user)):
-    return {"id": user["id"], "email": user["email"], "account_type": user["account_type"], "is_admin": user.get("is_admin") is True}
+    return {"id": user["id"], "email": user["email"], "account_type": user["account_type"], "is_admin": user.get("is_admin") is True, "mobile": user.get("mobile"), "mobile_verified": user.get("mobile_verified") is True}
 
 
 @api.get("/status")

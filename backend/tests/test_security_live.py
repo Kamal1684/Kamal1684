@@ -52,7 +52,8 @@ def _new_account(account_type: str) -> tuple[str, str, str, str]:
     """Return (token, user_id, email, password)."""
     email = f"TEST_{uuid.uuid4().hex}@example.com"
     password = "StrongPass123!"
-    r = _post("/api/auth/register", json={"email": email, "password": password, "account_type": account_type})
+    mobile = "9" + str(uuid.uuid4().int % 10**9).zfill(9)
+    r = _post("/api/auth/register", json={"email": email, "password": password, "account_type": account_type, "mobile": mobile})
     assert r.status_code == 200, f"register {account_type} failed: {r.status_code} {r.text}"
     login = _post("/api/auth/login", json={"email": email, "password": password})
     assert login.status_code == 200, login.text
@@ -64,7 +65,8 @@ def _bootstrap_admin() -> str:
     """Create a fresh admin using the server-side secret and return its token."""
     email = f"ADMIN_{uuid.uuid4().hex}@example.com"
     password = "AdminStrong123!"
-    r = _post("/api/auth/register", json={"email": email, "password": password, "account_type": "hospital"})
+    mobile = "9" + str(uuid.uuid4().int % 10**9).zfill(9)
+    r = _post("/api/auth/register", json={"email": email, "password": password, "account_type": "hospital", "mobile": mobile})
     assert r.status_code == 200, r.text
     r = _post("/api/auth/admin-bootstrap", json={"email": email, "password": password, "account_type": "hospital"}, headers={"x-admin-bootstrap-secret": ADMIN_SECRET})
     assert r.status_code == 200, r.text
@@ -76,7 +78,7 @@ def _bootstrap_admin() -> str:
 def test_admin_bootstrap_rejects_without_secret():
     email = f"NOADMIN_{uuid.uuid4().hex}@example.com"
     password = "TryAdmin123!"
-    _post("/api/auth/register", json={"email": email, "password": password, "account_type": "nurse"})
+    _post("/api/auth/register", json={"email": email, "password": password, "account_type": "nurse", "mobile": "9" + str(uuid.uuid4().int % 10**9).zfill(9)})
     # Missing secret header
     r = _post("/api/auth/admin-bootstrap", json={"email": email, "password": password, "account_type": "nurse"})
     assert r.status_code == 403
@@ -89,7 +91,7 @@ def test_admin_bootstrap_rejects_without_secret():
 
 
 def test_register_rejects_admin_account_type():
-    r = _post("/api/auth/register", json={"email": f"X_{uuid.uuid4().hex}@example.com", "password": "StrongPass123!", "account_type": "admin"})
+    r = _post("/api/auth/register", json={"email": f"X_{uuid.uuid4().hex}@example.com", "password": "StrongPass123!", "account_type": "admin", "mobile": "9" + str(uuid.uuid4().int % 10**9).zfill(9)})
     assert r.status_code == 400
 
 

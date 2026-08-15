@@ -45,7 +45,8 @@ def _h(tok: str) -> dict:
 def _register(account_type: str = "nurse"):
     email = f"TEST_{uuid.uuid4().hex}@example.com"
     password = "StrongPass123!"
-    r = requests.post(f"{BASE}/api/auth/register", json={"email": email, "password": password, "account_type": account_type}, timeout=15)
+    mobile = "9" + str(uuid.uuid4().int % 10**9).zfill(9)
+    r = requests.post(f"{BASE}/api/auth/register", json={"email": email, "password": password, "account_type": account_type, "mobile": mobile}, timeout=15)
     assert r.status_code == 200, r.text
     r = requests.post(f"{BASE}/api/auth/login", json={"email": email, "password": password}, timeout=15)
     assert r.status_code == 200, r.text
@@ -191,7 +192,7 @@ class TestForgotPassword:
         email = f"TEST_rl_{uuid.uuid4().hex}@example.com"
         # Register so it's a real account (rate limit applies to email regardless)
         requests.post(f"{BASE}/api/auth/register",
-                      json={"email": email, "password": "StrongPass123!", "account_type": "nurse"}, timeout=15)
+                      json={"email": email, "password": "StrongPass123!", "account_type": "nurse", "mobile": "9" + str(uuid.uuid4().int % 10**9).zfill(9)}, timeout=15)
         codes = []
         for _ in range(6):
             codes.append(requests.post(f"{BASE}/api/auth/forgot-password", json={"email": email}, timeout=15).status_code)

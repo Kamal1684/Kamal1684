@@ -248,3 +248,29 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
 - `/app/frontend/src/lib/{api,match,status}.js` – axios client, match score +
   snapshots, status/job-state metadata.
 - `/app/memory/test_credentials.md` – credential handling notes.
+
+
+## Changelog
+
+### 2026-06 — Login/Register UI redesign + Mobile number registration
+- **Login/Register UI**: Removed the Sign In/Register tabs. Single form shown
+  first; account switch moved to the bottom ("Don't have an account? Register"
+  / "Already have an account? Sign In"). Auth logic unchanged.
+  (`frontend/src/pages/Login.jsx`)
+- **Mobile registration (required)**: Added required `mobile` field to Nurse &
+  Hospital registration, wired end-to-end.
+  - Backend (`server.py`): new `RegisterInput` model (email/password/account_type/mobile),
+    `normalize_indian_mobile()` validates & normalizes +91 numbers to
+    `+91XXXXXXXXXX` (10 digits starting 6-9, accepts +91/0/91 prefixes).
+    `/auth/register` now stores `mobile` + `mobile_verified: False`, rejects
+    duplicate mobiles (409) and invalid formats (400). `login` & `/auth/me`
+    responses include `mobile` and `mobile_verified`.
+  - No OTP/SMS verification implemented — number stored as verification pending
+    (UI shows "Verification pending" note). NOT verified.
+  - Frontend: `AuthContext.register` passes mobile; Login register form has
+    `register-mobile-input` (+91 prefix); `apiError` hardened to format 422
+    validation arrays into readable strings.
+  - Tests: all test register helpers updated to send a unique valid mobile.
+    Full suite **64 passed** (3× stable). E2E UI registration confirmed the
+    mobile persists in MongoDB (`+91…`, `mobile_verified: False`).
+- `Credentials` model (login/admin-bootstrap) left unchanged.

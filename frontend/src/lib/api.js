@@ -19,7 +19,12 @@ api.interceptors.response.use(
   }
 );
 
-export const apiError = (err, fallback = "Something went wrong") =>
-  err?.response?.data?.detail || err?.message || fallback;
+export const apiError = (err, fallback = "Something went wrong") => {
+  const d = err?.response?.data?.detail;
+  if (typeof d === "string") return d;
+  if (Array.isArray(d)) return d.map((e) => (e && typeof e.msg === "string" ? e.msg : JSON.stringify(e))).filter(Boolean).join(" ");
+  if (d && typeof d.msg === "string") return d.msg;
+  return err?.message || fallback;
+};
 
 export default api;

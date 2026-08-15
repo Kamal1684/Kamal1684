@@ -43,7 +43,8 @@ def _h(tok: str) -> dict:
 def _register(account_type: str):
     email = f"TEST_{uuid.uuid4().hex}@example.com"
     password = "StrongPass123!"
-    r = requests.post(f"{BASE}/api/auth/register", json={"email": email, "password": password, "account_type": account_type}, timeout=15)
+    mobile = "9" + str(uuid.uuid4().int % 10**9).zfill(9)
+    r = requests.post(f"{BASE}/api/auth/register", json={"email": email, "password": password, "account_type": account_type, "mobile": mobile}, timeout=15)
     assert r.status_code == 200, r.text
     r = requests.post(f"{BASE}/api/auth/login", json={"email": email, "password": password}, timeout=15)
     assert r.status_code == 200, r.text
