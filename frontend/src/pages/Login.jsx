@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate, Navigate, Link } from "react-router-dom";
 import { HeartPulse, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { apiError } from "../lib/api";
@@ -83,6 +83,9 @@ export default function Login() {
                   <Button data-testid="login-submit-btn" type="submit" disabled={busy} className="w-full bg-blue-600 hover:bg-blue-700">
                     {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Sign In
                   </Button>
+                  <div className="text-center">
+                    <Link data-testid="forgot-password-link" to="/forgot-password" className="text-sm text-blue-600 hover:underline">Forgot password?</Link>
+                  </div>
                 </form>
               </TabsContent>
               <TabsContent value="register">

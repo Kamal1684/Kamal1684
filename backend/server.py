@@ -6,8 +6,11 @@ server-side users collection's is_admin flag.
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
+import hashlib
 import logging
 import os
+import secrets
+import time
 import uuid
 
 import bcrypt
@@ -47,6 +50,20 @@ class Credentials(BaseModel):
     account_type: str = "nurse"
 
 
+class ChangePasswordInput(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
+
+
+class ForgotPasswordInput(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordInput(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+
+
 class ProfileInput(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -72,7 +89,21 @@ async def current_user(request: Request) -> Dict[str, Any]:
     user = await db.users.find_one({"id": claims.get("sub")}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="Invalid session")
+    changed_at = user.get("password_changed_at")
+    if changed_at and claims.get("iat", 0) < changed_at:
+        raise HTTPException(status_code=401, detail="Session expired, please log in again")
     return user
+
+
+def issue_token(user_id: str) -> str:
+    return jwt.encode(
+        {"sub": user_id, "iat": time.time(), "exp": datetime.now(timezone.utc) + timedelta(minutes=TOKEN_MINUTES)},
+        jwt_secret, algorithm=JWT_ALGORITHM,
+    )
+
+
+def hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def require_admin(user: Dict[str, Any]) -> None:
@@ -212,8 +243,90 @@ async def login(body: Credentials):
     user = await db.users.find_one({"email": body.email.lower()})
     if not user or not bcrypt.checkpw(body.password.encode(), user["password_hash"].encode()):
         raise HTTPException(401, "Invalid credentials")
-    token = jwt.encode({"sub": user["id"], "exp": datetime.now(timezone.utc) + timedelta(minutes=TOKEN_MINUTES)}, jwt_secret, algorithm=JWT_ALGORITHM)
+    token = issue_token(user["id"])
     return {"token": token, "user": {"id": user["id"], "email": user["email"], "account_type": user["account_type"], "is_admin": user.get("is_admin") is True}}
+
+
+@api.post("/auth/change-password")
+async def change_password(body: ChangePasswordInput, user=Depends(current_user)):
+    """Authenticated users change ONLY their own password. Old sessions are invalidated."""
+    record = await db.users.find_one({"id": user["id"]})
+    if not record or not bcrypt.checkpw(body.current_password.encode(), record["password_hash"].encode()):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    if body.current_password == body.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different from the current password")
+    new_hash = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one({"id": user["id"]}, {"$set": {"password_hash": new_hash, "password_changed_at": time.time()}})
+    return {"message": "Password changed successfully", "token": issue_token(user["id"])}
+
+
+RESET_TOKEN_MINUTES = 30
+RESET_REQUESTS_PER_HOUR = 5
+RESET_FAILED_ATTEMPT_LIMIT = 10
+
+
+@api.post("/auth/forgot-password")
+async def forgot_password(body: ForgotPasswordInput):
+    """Always responds generically so account existence is never revealed."""
+    email = body.email.lower()
+    hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+    recent = await db.reset_requests.count_documents({"email": email, "created_at": {"$gte": hour_ago.isoformat()}})
+    if recent >= RESET_REQUESTS_PER_HOUR:
+        raise HTTPException(status_code=429, detail="Too many reset requests. Please try again later.")
+    await db.reset_requests.insert_one({"email": email, "created_at": datetime.now(timezone.utc).isoformat()})
+    user = await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
+    if user:
+        token = secrets.token_urlsafe(32)
+        await db.password_reset_tokens.insert_one({
+            "id": str(uuid.uuid4()), "token_hash": hash_reset_token(token), "user_id": user["id"],
+            "email": email, "used": False,
+            "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_MINUTES)).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        email_sent = await deliver_reset_email(email, token)
+        if not email_sent:
+            logging.getLogger(__name__).warning("Password reset requested but no email provider is configured; token stored hashed and undeliverable.")
+    return {"message": "If an account exists for that email, password reset instructions have been sent."}
+
+
+async def deliver_reset_email(email: str, token: str) -> bool:
+    """Send the reset link via the configured email provider. Never log the token."""
+    if not os.environ.get("RESEND_API_KEY"):
+        return False
+    try:
+        import resend
+        resend.api_key = os.environ["RESEND_API_KEY"]
+        frontend = os.environ.get("FRONTEND_URL", "")
+        resend.Emails.send({
+            "from": os.environ.get("RESET_EMAIL_FROM", "NurseConnect <onboarding@resend.dev>"),
+            "to": [email],
+            "subject": "Reset your NurseConnect password",
+            "html": f"<p>Click the link below to reset your NurseConnect password. It expires in {RESET_TOKEN_MINUTES} minutes.</p>"
+                    f"<p><a href=\"{frontend}/reset-password?token={token}\">Reset password</a></p>"
+                    f"<p>If you did not request this, you can ignore this email.</p>",
+        })
+        return True
+    except Exception:
+        logging.getLogger(__name__).exception("Failed to send password reset email")
+        return False
+
+
+@api.post("/auth/reset-password")
+async def reset_password(body: ResetPasswordInput, request: Request):
+    ip = request.client.host if request.client else "unknown"
+    win_start = datetime.now(timezone.utc) - timedelta(minutes=15)
+    fails = await db.reset_attempt_failures.count_documents({"ip": ip, "created_at": {"$gte": win_start.isoformat()}})
+    if fails >= RESET_FAILED_ATTEMPT_LIMIT:
+        raise HTTPException(status_code=429, detail="Too many attempts. Please try again later.")
+    record = await db.password_reset_tokens.find_one({"token_hash": hash_reset_token(body.token)})
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if not record or record.get("used") or record.get("expires_at", "") < now_iso:
+        await db.reset_attempt_failures.insert_one({"ip": ip, "created_at": now_iso})
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    new_hash = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one({"id": record["user_id"]}, {"$set": {"password_hash": new_hash, "password_changed_at": time.time()}})
+    await db.password_reset_tokens.update_one({"id": record["id"]}, {"$set": {"used": True, "used_at": now_iso}})
+    return {"message": "Password has been reset. You can now log in with your new password."}
 
 
 @api.get("/auth/me")

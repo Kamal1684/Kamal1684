@@ -5,6 +5,7 @@ import { profileCompletion } from "../../lib/match";
 import { fmtDate } from "../../lib/status";
 import { VerificationBadge } from "../../components/nurse/Badges";
 import { LoadingState, ErrorState } from "../../components/nurse/States";
+import { ChangePasswordCard } from "../../components/ChangePasswordCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -273,6 +274,8 @@ export default function Profile() {
           ))}
         </CardContent>
       </Card>
+
+      <ChangePasswordCard />
     </div>
   );
 }

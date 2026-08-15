@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Toaster } from "./components/ui/sonner";
 import api from "./lib/api";
 import Login from "./pages/Login";
+import { ForgotPassword, ResetPassword } from "./pages/PasswordReset";
 import NurseLayout from "./components/nurse/NurseLayout";
 import Dashboard from "./pages/nurse/Dashboard";
 import Profile from "./pages/nurse/Profile";
@@ -106,6 +107,8 @@ function App() {
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/nurse" element={<NurseArea />}>
             <Route index element={<Navigate to="/nurse/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />

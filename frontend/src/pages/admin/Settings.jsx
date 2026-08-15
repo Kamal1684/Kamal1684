@@ -1,5 +1,6 @@
 import { ShieldCheck, KeyRound, Sparkles } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { ChangePasswordCard } from "../../components/ChangePasswordCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 
@@ -29,6 +30,8 @@ export default function AdminSettings() {
           </dl>
         </CardContent>
       </Card>
+
+      <ChangePasswordCard accentClass="bg-indigo-600 hover:bg-indigo-700" />
 
       <Card className="border-slate-200">
         <CardHeader>

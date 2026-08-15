@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 7 (password management) tested end-to-end. Added /app/backend/tests/test_password_management.py (13 tests: change-password happy+wrong-current+short+same+unauth+hospital+extra-fields-ignored, forgot-password generic+hash-at-rest+rate-limit, reset-password happy+expired+invalid, no password leaks). Full backend suite: 51 pre-existing tests still pass (regression clean); of the 13 new tests, 10-12 pass consistently and 1-2 fail intermittently due to a REAL security bug (see RCA). UI flows verified: forgot-password link on /login, /forgot-password generic success, /reset-password without token shows missing-token message, /reset-password?token=<valid> resets and redirects to /login, login with reset password works, change-password-card renders on /nurse/profile, /hospital/profile, and /admin/settings, mismatch shows password-mismatch-message, correct change keeps user logged in (fresh token), old password fails / new password succeeds. Admin login routing regression clean (lands on /admin/dashboard).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "/api/auth/change-password and /api/auth/reset-password", "issue": "Same-second race: current_user() uses strict `claims['iat'] < user['password_changed_at']` while issue_token() and the change/reset handlers all use int(time.time()). When a token is issued and the password is changed within the same UNIX second (very common in tests and legitimate rapid workflows), iat == password_changed_at, the strict-less-than check is False, and the OLD JWT continues to be accepted by /api/auth/me and every other authenticated endpoint. This intermittently breaks the documented 'all older JWTs are invalidated' contract and reintroduces a session-fixation window after password change / reset. Verified reproducible: /app/backend/tests/test_password_management.py::TestChangePassword::test_happy_path_invalidates_old_token and TestResetPassword::test_happy_path_and_old_token_invalidation flip between PASS and FAIL across runs (~50% failure rate).", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_password_management.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix same-second JWT invalidation race in /app/backend/server.py. Suggested minimal patch: (a) in change_password/reset_password, set `now = int(time.time()) + 1` and use it for BOTH password_changed_at and the fresh token's iat (server.py issue_token would need to accept an override, OR just set password_changed_at = int(time.time()) then sleep(1) — undesirable — OR simpler: change the check in current_user to `claims.get('iat', 0) <= changed_at` AND make change_password/reset_password issue the fresh token AFTER setting password_changed_at with iat = password_changed_at + 1). Simplest safe option: change the guard to `<=` and mint the fresh token by writing `password_changed_at = now - 1` before update (so iat = now > password_changed_at). Alternatively store password_changed_at as float time.time() and continue using strict `<` since float second granularity avoids equality."
+  ],
+  "critical_code_review_comments": [
+    "server.py:93 uses strict `<`; combined with int-second granularity in issue_token (line 99) and change/reset handlers (lines 259, 329) creates the invalidation race described above.",
+    "server.py:325 uses ISO-8601 string comparison for expires_at (`record.get('expires_at', '') < now_iso`). Works because all timestamps are UTC ISO with fixed formatting, but is fragile if any code path stores a datetime object or a non-Z ISO string. Consider comparing as datetime for robustness.",
+    "server.py:275 rate-limit query uses `created_at` ISO string comparison; same fragility observation — currently correct because inserts write the same ISO format, but recommend using datetime objects in Mongo for time-window queries.",
+    "PasswordReset.jsx submit does NOT sync `next`/`confirm` mismatch as an inline data-testid message like ChangePasswordCard does. Minor; the toast covers it and the test IDs required by the spec (reset-missing-token, reset-*-input, reset-password-submit-btn) are all present."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_password_management.py (new)"
+  ],
+  "success_rate": {"backend": "98% (63/64 stable, 1 intermittent HIGH-priority failure exposes a real bug)", "frontend": "100% (all UI flows for iteration 7 passed)"},
+  "test_credentials": "Persistent admin (unchanged, verified): admin@nurseconnect-platform.com / AdminPass123!. All other test data ephemeral with TEST_<uuid>@example.com prefix.",
+  "seed_data_creation": "For UI reset-password flow, seeded one password_reset_tokens document into MongoDB (test_database) with sha256 hash of a fresh raw token for an ephemeral registered nurse; document expires after 30 min and is single-use.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The 3rd-party email provider (RESEND_API_KEY) is intentionally NOT configured in preview — forgot-password stores hashed tokens and returns generic success without sending mail; this is expected. The intermittent invalidation failure in test_password_management.py is NOT a flaky test — it deterministically exposes the iat<password_changed_at race. After the main agent fixes it, rerun `cd /app/backend && python -m pytest tests/ -q` 3× to confirm no failures. Do NOT touch admin@nurseconnect-platform.com (never change its password). For local reset-token seeding use /app/backend/.env MONGO_URL + DB_NAME with pymongo; motor is NOT available in the browser-automation Python env.",
+  "rca of the issue": "Root cause: session invalidation after change-password / reset-password relies on `claims['iat'] < user['password_changed_at']` (server.py:93), and both timestamps are truncated to whole seconds via `int(time.time())` (server.py:99, 259, 329). If a JWT is issued and the same user's password is subsequently changed within the same second (which is extremely common — the change-password test flow does register→login→change-password in ~200 ms), `iat == password_changed_at`, the strict `<` check is False, and the old JWT continues to authenticate against /api/auth/me and every protected endpoint. Reproduction: 1) register a nurse and immediately login (call it token_old). 2) POST /api/auth/change-password with correct current+new password. 3) GET /api/auth/me with Bearer token_old — observed 200 (should be 401) whenever step 1 and step 2 land in the same UNIX second. Suggested mitigation: either (a) change the guard to `claims['iat'] <= password_changed_at` and shift the fresh token by minting it with `iat = password_changed_at + 1` (or equivalently subtract 1 from password_changed_at at write time), or (b) persist password_changed_at with sub-second precision (float or int microseconds) and keep strict `<`. Option (b) is the cleanest and does not require touching issue_token."
+}
