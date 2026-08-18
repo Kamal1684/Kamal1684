@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Navigate, Link } from "react-router-dom";
-import { HeartPulse, Loader2 } from "lucide-react";
+import { HeartPulse, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { apiError } from "../lib/api";
 import { Button } from "../components/ui/button";
@@ -15,8 +15,9 @@ export default function Login() {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState("login");
+  const [showRegPassword, setShowRegPassword] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
-  const [regForm, setRegForm] = useState({ email: "", password: "", account_type: "nurse", mobile: "" });
+  const [regForm, setRegForm] = useState({ full_name: "", email: "", password: "", account_type: "nurse", mobile: "" });
 
   const homeFor = (u) => u.is_admin ? "/admin/dashboard" : u.account_type === "nurse" ? "/nurse/dashboard" : u.account_type === "hospital" ? "/hospital/dashboard" : "/";
 
@@ -42,6 +43,7 @@ export default function Login() {
     e.preventDefault();
     setBusy(true);
     try {
+      localStorage.setItem("nc_signup_name", regForm.full_name.trim());
       afterAuth(await register(regForm.email, regForm.password, regForm.account_type, regForm.mobile));
     } catch (err) {
       toast.error(apiError(err, "Registration failed"));
@@ -89,12 +91,21 @@ export default function Login() {
             ) : (
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-1.5">
+                  <Label htmlFor="reg-name">Full Name</Label>
+                  <Input data-testid="register-name-input" id="reg-name" type="text" required value={regForm.full_name} onChange={(e) => setRegForm({ ...regForm, full_name: e.target.value })} placeholder="e.g. Priya Sharma" />
+                </div>
+                <div className="space-y-1.5">
                   <Label htmlFor="reg-email">Email</Label>
                   <Input data-testid="register-email-input" id="reg-email" type="email" required value={regForm.email} onChange={(e) => setRegForm({ ...regForm, email: e.target.value })} placeholder="you@example.com" />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="reg-password">Password (min 8 characters)</Label>
-                  <Input data-testid="register-password-input" id="reg-password" type="password" required minLength={8} value={regForm.password} onChange={(e) => setRegForm({ ...regForm, password: e.target.value })} placeholder="••••••••" />
+                  <div className="relative">
+                    <Input data-testid="register-password-input" id="reg-password" type={showRegPassword ? "text" : "password"} required minLength={8} value={regForm.password} onChange={(e) => setRegForm({ ...regForm, password: e.target.value })} placeholder="••••••••" className="pr-10" />
+                    <button type="button" data-testid="toggle-register-password" aria-label={showRegPassword ? "Hide password" : "Show password"} onClick={() => setShowRegPassword((v) => !v)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600">
+                      {showRegPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="reg-mobile">Mobile Number</Label>

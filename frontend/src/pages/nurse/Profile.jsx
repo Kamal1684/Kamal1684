@@ -14,6 +14,7 @@ import { Switch } from "../../components/ui/switch";
 import { Progress } from "../../components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { toast } from "sonner";
+import { useAuth } from "../../context/AuthContext";
 
 const DOC_TYPES = [
   { key: "qualification_certificate", label: "Qualification Certificate" },
@@ -30,12 +31,13 @@ const emptyForm = {
   accommodation_required: false, willing_to_relocate: false,
 };
 
-function Field({ id, label, value, onChange, type = "text", placeholder }) {
+function Field({ id, label, value, onChange, type = "text", placeholder, readOnly = false }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
       <Input data-testid={`profile-${id}-input`} id={id} type={type} value={value} placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)} />
+        readOnly={readOnly} className={readOnly ? "bg-slate-50 text-slate-500 cursor-not-allowed" : undefined}
+        onChange={(e) => onChange && onChange(e.target.value)} />
     </div>
   );
 }
@@ -84,6 +86,7 @@ function DocumentRow({ type, doc, onUpload, onDelete, busy }) {
 }
 
 export default function Profile() {
+  const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [docs, setDocs] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -106,11 +109,17 @@ export default function Profile() {
             ...Object.fromEntries(Object.keys(emptyForm).map((k) => [k, p[k] ?? emptyForm[k]])),
             departments: (p.departments || []).join(", "),
           });
+        } else {
+          setForm({
+            ...emptyForm,
+            full_name: localStorage.getItem("nc_signup_name") || "",
+            phone: user?.mobile || "",
+          });
         }
         setLoaded(true);
       })
       .catch((e) => setError(apiError(e)));
-  }, []);
+  }, [user]);
 
   useEffect(load, [load]);
 
@@ -211,7 +220,8 @@ export default function Profile() {
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field id="full_name" label="Full name" value={form.full_name} onChange={set("full_name")} placeholder="e.g. Priya Sharma" />
-            <Field id="phone" label="Phone" value={form.phone} onChange={set("phone")} placeholder="e.g. +91 98765 43210" />
+            <Field id="email" label="Email" value={user?.email || ""} readOnly />
+            <Field id="phone" label="Mobile number" value={form.phone} onChange={set("phone")} placeholder="e.g. +91 98765 43210" />
             <Field id="city" label="City" value={form.city} onChange={set("city")} placeholder="e.g. Mumbai" />
             <Field id="state" label="State" value={form.state} onChange={set("state")} placeholder="e.g. Maharashtra" />
           </CardContent>
