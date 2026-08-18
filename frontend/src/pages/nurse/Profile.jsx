@@ -23,6 +23,7 @@ const DOC_TYPES = [
 ];
 const MAX_FILE = 2 * 1024 * 1024;
 const SHIFTS = ["Day", "Night", "Rotational", "Flexible"];
+const STATES = ["Haryana", "Delhi", "Himachal Pradesh", "Punjab", "Chandigarh"];
 
 const emptyForm = {
   full_name: "", phone: "", city: "", state: "",
@@ -223,7 +224,17 @@ export default function Profile() {
             <Field id="email" label="Email" value={user?.email || ""} readOnly />
             <Field id="phone" label="Mobile number" value={form.phone} onChange={set("phone")} placeholder="e.g. +91 98765 43210" />
             <Field id="city" label="City" value={form.city} onChange={set("city")} placeholder="e.g. Mumbai" />
-            <Field id="state" label="State" value={form.state} onChange={set("state")} placeholder="e.g. Maharashtra" />
+            <div className="space-y-1.5">
+              <Label>State</Label>
+              <Select value={form.state} onValueChange={set("state")}>
+                <SelectTrigger data-testid="profile-state-select"><SelectValue placeholder="Select state" /></SelectTrigger>
+                <SelectContent>
+                  {(STATES.includes(form.state) || !form.state ? STATES : [form.state, ...STATES]).map((s) => (
+                    <SelectItem key={s} data-testid={`state-option-${s.toLowerCase().replace(/\s+/g, "-")}`} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
         </Card>
 

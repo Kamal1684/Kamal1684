@@ -1,4 +1,4 @@
-import { Building2, MapPin, IndianRupee, Clock, Users, GraduationCap, Briefcase } from "lucide-react";
+import { Building2, MapPin, IndianRupee, Clock, Users, GraduationCap, Briefcase, CalendarClock } from "lucide-react";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -13,6 +13,7 @@ export function JobMeta({ job }) {
     { icon: Clock, value: job.shift ? `${job.shift} shift` : null },
     { icon: GraduationCap, value: job.qualification_required },
     { icon: Users, value: job.openings ? `${job.openings} openings` : null },
+    { icon: CalendarClock, value: job.application_deadline ? `Apply by ${fmtDate(job.application_deadline)}` : null },
   ].filter((i) => i.value);
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-slate-600">

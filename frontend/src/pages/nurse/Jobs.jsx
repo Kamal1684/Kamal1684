@@ -11,15 +11,17 @@ import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 import { Switch } from "../../components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../components/ui/dialog";
 import { toast } from "sonner";
 
-const initialFilters = { q: "", department: "", qualification: "", location: "", minSalary: "", maxExperience: "", shift: "", accommodation: false };
+const JOB_TITLES = ["Nursing Officer"];
+const initialFilters = { q: "", jobTitle: "all", department: "", qualification: "", location: "", minSalary: "", maxExperience: "", shift: "", accommodation: false };
 
 const snapshotFields = (job) => ({
   job_title: job.title, hospital_name: job.hospital_name, hospital_verified: !!job.hospital_verified,
   department: job.department, location: job.location, salary_min: job.salary_min, salary_max: job.salary_max,
-  shift: job.shift, posted_at: job.created_at,
+  shift: job.shift, posted_at: job.created_at, application_deadline: job.application_deadline,
 });
 
 export default function Jobs() {
@@ -53,6 +55,7 @@ export default function Jobs() {
     const has = (v, needle) => String(v || "").toLowerCase().includes(needle.toLowerCase());
     return jobs.filter((j) => {
       if (f.q && !(has(j.title, f.q) || has(j.hospital_name, f.q) || has(j.department, f.q))) return false;
+      if (f.jobTitle && f.jobTitle !== "all" && !has(j.title, f.jobTitle)) return false;
       if (f.department && !has(j.department, f.department)) return false;
       if (f.qualification && !has(j.qualification_required, f.qualification)) return false;
       if (f.location && !has(j.location, f.location)) return false;
@@ -109,6 +112,16 @@ export default function Jobs() {
         <Card className="border-slate-200 lg:sticky lg:top-20">
           <CardHeader className="pb-3"><CardTitle className="font-heading text-base">Filters</CardTitle></CardHeader>
           <CardContent className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-500">Job Title</Label>
+              <Select value={filters.jobTitle} onValueChange={(v) => setFilters({ ...filters, jobTitle: v })}>
+                <SelectTrigger data-testid="job-filter-jobTitle-select" className="h-9"><SelectValue placeholder="All titles" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem data-testid="job-title-option-all" value="all">All titles</SelectItem>
+                  {JOB_TITLES.map((t) => <SelectItem key={t} data-testid={`job-title-option-${t.toLowerCase().replace(/\s+/g, "-")}`} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             {[
               { key: "q", label: "Job title / keyword", placeholder: "e.g. ICU Nurse" },
               { key: "department", label: "Department", placeholder: "e.g. ICU" },
