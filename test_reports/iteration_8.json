@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 8 - Nurse+Hospital end-to-end workflow completion & RLS verification. Wrote /app/backend/tests/test_workflow_iteration8.py (8 tests) covering: register (mobile validation + duplicate mobile), hospital profile save, job create+publish (published/approved/status active), nurse apply, duplicate 409, My Applications visibility, Shortlist -> Schedule Interview -> nurse sees interview_scheduled + interview record, Mark Completed, Select (nurse sees selected), Reject path (second nurse sees rejected), nurse-status-mutation forbidden (403), and full RLS isolation (hospital B cannot list/read/PATCH hospital A's jobs/applications/interviews). All 8 new tests PASS. Full backend suite: 72/72 pass (64 preexisting + 8 new) - no regressions. UI smoke run via preview URL: fresh hospital + nurse signup through Login.jsx succeeds; hospital JobForm publish creates a live job (visible in hospital list); on nurse Find Jobs the job renders with Hospital Name, 'Apply by' last date, and Job Title dropdown containing 'Nursing Officer'; Apply button changes to 'Applied' after click and is disabled (duplicate blocked); My Applications page renders application card with 5-step status tracker (Applied active). All 4 preserved Nurse-Portal UI changes still intact.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "JobCard (/app/frontend/src/components/nurse/JobCard.jsx line ~36)", "issue": "React hydration warning: <div> (from Badge/VerifiedHospitalBadge) rendered inside a <p> element. Not user-visible but produces a console warning on every Find Jobs render. Change the wrapper <p> to a <div> or move the badge outside the <p>.", "selector": "JobCard hospital-name paragraph", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_workflow_iteration8.py",
+    "/app/test_reports/pytest/iteration8_workflow.xml"
+  ],
+  "action_items": [
+    "(Low) Fix the JobCard <div>-inside-<p> hydration warning in /app/frontend/src/components/nurse/JobCard.jsx (~line 36-38).",
+    "(Carried over from iteration 7 - still open) Fix the same-second JWT invalidation race in /app/backend/server.py (claims['iat'] < password_changed_at with int-second precision). See iteration_7.json for RCA. Not blocking this iteration."
+  ],
+  "critical_code_review_comments": [
+    "server.py:459-462 duplicate-application guard is correct and returns 409 as required; PATCH RLS via job_for_hospital (503-509) correctly rejects cross-hospital updates with 403.",
+    "server.py:412-434 list scoping correctly derives hospital ownership through owned-jobs then owned-applications for interviews - verified isolation for hospital B.",
+    "Nurse cannot mutate own application status is enforced (server.py:506) - test asserts 403.",
+    "JobCard hydration warning noted above; harmless but should be cleaned up."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_workflow_iteration8.py (new)"
+  ],
+  "success_rate": {"backend": "100% (8/8 new workflow tests + 64/64 preexisting = 72/72)", "frontend": "100% (all critical UI flows validated: signup, publish, view job, apply, duplicate block, My Applications tracker)"},
+  "test_credentials": "Fresh wftest_ prefixed accounts created per-run through UI signup. Admin remains admin@nurseconnect-platform.com / AdminPass123!.",
+  "seed_data_creation": "None (all data created live through public register/login API and UI signup with wftest_ prefix).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The DB already accumulates many wftest_ jobs across iterations - hundreds of apply buttons on nurse Find Jobs. Consider a periodic cleanup query: db.jobs.delete_many({hospital_name: /^WFTest/}), db.users.delete_many({email: /^wftest_/}), etc. All workflow contracts (dup 409, publish gating, status transitions, interview ownership, RLS on list+read+PATCH) are verified end-to-end at the API layer by test_workflow_iteration8.py - reuse it as regression before any change to server.py routes /application, /interview, /job, or the hospital_key/job_for_hospital helpers.",
+  "rca of the issue": "No new bug found in this iteration; the app satisfies the request. Only carryover: the iteration-7 same-second iat vs password_changed_at race remains open (unrelated to this workflow task)."
+}

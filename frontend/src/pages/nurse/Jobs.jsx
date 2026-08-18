@@ -168,8 +168,8 @@ export default function Jobs() {
                 <DialogTitle className="font-heading">{detailJob.title}</DialogTitle>
                 <DialogDescription className="flex items-center gap-2 flex-wrap">
                   <Building2 className="h-4 w-4" /> {detailJob.hospital_name || "Hospital"}
-                  {detailJob.hospital_verified && <VerifiedHospitalBadge />}
                 </DialogDescription>
+                {detailJob.hospital_verified && <div className="mt-1"><VerifiedHospitalBadge /></div>}
               </DialogHeader>
               <div className="space-y-3">
                 <JobMeta job={detailJob} />

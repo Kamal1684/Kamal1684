@@ -274,3 +274,30 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
     Full suite **64 passed** (3× stable). E2E UI registration confirmed the
     mobile persists in MongoDB (`+91…`, `mobile_verified: False`).
 - `Credentials` model (login/admin-bootstrap) left unchanged.
+
+
+### 2026-06 — Nurse Portal UI additions + full workflow verification
+- **Nurse Portal (frontend only)**:
+  - Find Jobs shows Hospital Name and "Apply by {last date}" (from `application_deadline`).
+  - Added Job Title filter dropdown with "Nursing Officer" (`pages/nurse/Jobs.jsx`).
+  - Nurse Profile State converted to dropdown: Haryana, Delhi, Himachal Pradesh,
+    Punjab, Chandigarh (preserves any pre-existing saved value).
+- **Signup/Profile prefill**: Show/Hide password toggle on signup; added required
+  Full Name field; Nurse Profile auto-fills Name (from signup, localStorage),
+  Email (read-only) and Mobile without re-asking.
+- **Nurse + Hospital workflow — verified end-to-end (testing agent iteration_8)**:
+  - Nurse: Find Jobs → Details → Apply → duplicate blocked (409, graceful UI) →
+    My Applications status tracker.
+  - Hospital: profile → create/publish job (published+approved+active) → Candidates
+    (Shortlist → Schedule Interview → Select/Reject) → Interviews (Mark Completed/
+    Cancel/Reschedule) → Hired roster.
+  - Status transitions Applied → Shortlisted → Interview Scheduled → Selected/Rejected
+    saved & visible to BOTH nurse and hospital; nurses cannot mutate their own
+    application status (403).
+  - RLS: a hospital can access only its own jobs/applications/interviews (list/read/
+    PATCH all isolated). **72/72 backend tests pass** (64 preexisting + 8 new
+    `test_workflow_iteration8.py`).
+  - Fixed genuine LOW bug: invalid `<div>` (Badge) nested in `<p>` in
+    `components/nurse/JobCard.jsx` and the Job Details dialog — now valid, no
+    console hydration warning.
+- No backend/auth/RLS/DB-structure changes. All `wftest_`/smoke test data purged.

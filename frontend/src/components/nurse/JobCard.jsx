@@ -33,10 +33,10 @@ export function JobCard({ job, match, saved, applied, onView, onSave, onRemove, 
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="min-w-0">
             <h3 className="font-heading font-semibold text-slate-900 text-lg leading-tight">{job.title || "Untitled role"}</h3>
-            <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
+            <div className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
               <Building2 className="h-3.5 w-3.5" /> {job.hospital_name || "Hospital"}
               {job.hospital_verified && <VerifiedHospitalBadge />}
-            </p>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <MatchBadge match={match} jobId={job.id || job.job_id} />
