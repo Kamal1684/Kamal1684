@@ -1,0 +1,47 @@
+{
+  "summary": "Iteration 9 - Verified all NurseConnect WF8 workflow enhancements. Wrote /app/backend/tests/test_workflow_wf8.py (15 new API contract tests) covering: Select gating (400 without completed interview, 400 without joining_date, 200 with both), Interview->completed cascade to application interview_completed, Nurse-only-withdraw restriction (403 on any other field/status), Mark Joined transition, /candidate-documents privacy (own hospital OK, other hospital 403), /candidate-notes privacy (owner OK, other hospital 403 GET+POST, nurse cannot see note text via /api/application list or detail), and hospital<->hospital RLS on application read/patch. Full backend suite: 87/87 pass (72 preexisting + 15 new) after fixing one iteration_8 test whose old contract predated the new joining_date requirement (updated to send joining_date). Frontend smoke: nurse signup + login through UI succeeds; /nurse/dashboard has nurse-verification-banner + dashboard-verification-badge + dashboard-notifications-card; /nurse/jobs shows profile-incomplete-banner with complete-profile-cta and a top yellow warning banner 'Complete your profile to apply...' rather than allowing Apply; /nurse/interviews renders 'Previous Interviews' section; /nurse/profile has documents-save-btn; Hospital nav item labeled 'Applications' at route /hospital/candidates. All required data-testids in Candidates.jsx (select-btn-<id>, joining-date-dialog, joining-date-input, confirm-select-btn, mark-joined-btn-<id>, candidate-doc-download-<id>, candidate-note-input, candidate-note-save-btn) and Applications.jsx (withdraw-application-btn-<id>, congratulations-dialog, congrats-joining-date) are present in source. No blocking issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "JobCard (/app/frontend/src/components/nurse/JobCard.jsx ~line 36)", "issue": "Carryover from iteration 8: React hydration warning <div>-inside-<p>. Not user-visible; still worth cleaning up.", "selector": "job card hospital-name paragraph", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Nurse Find Jobs", "issues": ["Preview DB has ~370 stale published jobs from prior iterations (wftest_ prefixes) so the list is long; cosmetic only, does not block functionality. Consider a cleanup of wf* seeded data before demoing."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_workflow_wf8.py",
+    "/app/test_reports/pytest/iteration9_wf8.xml",
+    "/app/test_reports/pytest/iteration9_full.xml"
+  ],
+  "action_items": [
+    "(Low) Fix JobCard <div>-inside-<p> hydration warning (carryover).",
+    "(Optional) Purge accumulated wftest_/wf8_ seed jobs/users in preview DB to shorten Find Jobs list.",
+    "(Carryover) Same-second JWT invalidation race in server.py current_user (int-second precision on iat vs password_changed_at) still open from iteration 7; not exercised by this workflow."
+  ],
+  "critical_code_review_comments": [
+    "server.py:548-553 correctly gates PATCH status=selected on BOTH a completed interview record AND a joining_date -> HTTP 400 otherwise. Verified via direct API bypassing UI.",
+    "server.py:541-547 nurse-only-withdraw rule is tight: any non-{status,updated_at} key OR status!=withdrawn -> 403. Confirmed.",
+    "server.py:574-577 interview status=completed cascades application to interview_completed only if app is in an earlier state; keeps idempotency safe. Good.",
+    "server.py:411-419 /candidate-documents restricts to hospital owner of the linked job (403 otherwise). Confirmed.",
+    "server.py:422-446 /candidate-notes: notes stored in a SEPARATE collection (candidate_notes) so the generic /api/application response never leaks them - verified nurse GET does not contain note text. Good separation of concerns.",
+    "server.py:429 GET returns default {application_id, note: ''} when no note exists - avoids null-handling on FE.",
+    "Candidates.jsx select-btn is only rendered when application status == interview_completed; joining-date-dialog with joining-date-input + confirm-select-btn is wired correctly with min=today.",
+    "match.js isProfileComplete requires full_name+phone+city+qualification+experience_years+departments as specified; Jobs.jsx uses it to render profile-incomplete-banner and block Apply."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_workflow_wf8.py (new)",
+    "/app/backend/tests/test_workflow_iteration8.py (test-only fix: added joining_date to PATCH selected to match new contract)"
+  ],
+  "success_rate": {"backend": "100% (87/87; 15/15 new WF8 tests + 72 preexisting)", "frontend": "100% smoke (all required testids present on Nurse Dashboard/Jobs/Interviews/Profile; Applications nav item present; Login->Dashboard flow works)"},
+  "test_credentials": "Fresh wf8_ prefixed accounts (StrongPass123!) created live per-run via /api/auth/register + /api/auth/login. Admin: admin@nurseconnect-platform.com / AdminPass123!.",
+  "seed_data_creation": "None persisted; all data created through public register/login/hospital/job/application/interview/document/candidate-notes APIs with wf8_ prefix.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "New regression file /app/backend/tests/test_workflow_wf8.py is the source of truth for: (1) select gating (interview_completed + joining_date required), (2) interview->application cascade, (3) nurse withdraw-only, (4) mark joined, (5) /candidate-documents privacy, (6) /candidate-notes privacy incl. no-leak-to-nurse. Rerun both test_workflow_iteration8.py and test_workflow_wf8.py before any change to PATCH /application, PATCH /interview, or /candidate-* endpoints. wf8_ email prefix is safe to purge in DB cleanup.",
+  "rca of the issue": "No functional bugs found. One preexisting iteration_8 test broke on the newly required joining_date - fixed by updating the test payload (legit test-side change, not a product fix)."
+}

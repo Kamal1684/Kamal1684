@@ -293,6 +293,10 @@ export default function Profile() {
           {DOC_TYPES.map((t) => (
             <DocumentRow key={t.key} type={t} doc={docs.find((d) => d.doc_type === t.key)} onUpload={uploadDoc} onDelete={deleteDoc} busy={docBusy} />
           ))}
+          <div className="pt-4 flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-xs text-slate-400">Documents are stored securely as you upload them.</p>
+            <Button type="button" data-testid="documents-save-btn" variant="outline" size="sm" disabled={docBusy} onClick={() => toast.success("Documents saved")}>Save Documents</Button>
+          </div>
         </CardContent>
       </Card>
 

@@ -11,6 +11,10 @@ import { Card, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../components/ui/dialog";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Textarea } from "../../components/ui/textarea";
+import { FileText, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Candidates() {
@@ -20,6 +24,11 @@ export default function Candidates() {
   const [busyId, setBusyId] = useState(null);
   const [detail, setDetail] = useState(null);
   const [scheduleFor, setScheduleFor] = useState(null);
+  const [joiningFor, setJoiningFor] = useState(null);
+  const [joiningDate, setJoiningDate] = useState("");
+  const [candDocs, setCandDocs] = useState([]);
+  const [note, setNote] = useState("");
+  const [noteBusy, setNoteBusy] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const jobFilter = searchParams.get("job") || "all";
 
@@ -43,10 +52,10 @@ export default function Candidates() {
       .sort((x, y) => (y.match?.score ?? -1) - (x.match?.score ?? -1));
   }, [apps, jobFilter, jobById]);
 
-  const setStatus = async (app, status, label) => {
+  const setStatus = async (app, status, label, extra = {}) => {
     setBusyId(app.id);
     try {
-      const { data } = await api.patch(`/application/${app.id}`, { status, updated_at: new Date().toISOString() });
+      const { data } = await api.patch(`/application/${app.id}`, { status, updated_at: new Date().toISOString(), ...extra });
       setApps((as) => as.map((x) => (x.id === app.id ? data : x)));
       toast.success(label);
     } catch (e) {
@@ -54,6 +63,45 @@ export default function Candidates() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const confirmSelect = async () => {
+    if (!joiningDate) { toast.error("Please choose a joining date"); return; }
+    await setStatus(joiningFor, "selected", "Candidate selected", { joining_date: joiningDate });
+    setJoiningFor(null); setJoiningDate("");
+  };
+
+  const openCandidate = async ({ app, match }) => {
+    setDetail({ app, match });
+    setCandDocs([]); setNote("");
+    try {
+      const [d, n] = await Promise.all([
+        api.get(`/candidate-documents/${app.id}`),
+        api.get(`/candidate-notes/${app.id}`),
+      ]);
+      setCandDocs(d.data || []);
+      setNote(n.data?.note || "");
+    } catch { /* ignore */ }
+  };
+
+  const saveNote = async () => {
+    if (!detail) return;
+    setNoteBusy(true);
+    try {
+      await api.post(`/candidate-notes/${detail.app.id}`, { note });
+      toast.success("Private note saved");
+    } catch (e) {
+      toast.error(apiError(e, "Could not save note"));
+    } finally {
+      setNoteBusy(false);
+    }
+  };
+
+  const downloadDoc = (doc) => {
+    const a = document.createElement("a");
+    a.href = `data:${doc.content_type || "application/octet-stream"};base64,${doc.data_base64}`;
+    a.download = doc.file_name || "document";
+    a.click();
   };
 
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -103,20 +151,23 @@ export default function Candidates() {
                   {app.nurse_location && <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-slate-400" /> {app.nurse_location}</span>}
                 </div>
                 <div className="flex justify-end gap-2 flex-wrap pt-1">
-                  <Button data-testid={`view-candidate-btn-${app.id}`} variant="outline" size="sm" onClick={() => setDetail({ app, match })}>View Candidate</Button>
-                  {!["shortlisted", "selected", "rejected", "withdrawn"].includes(app.status) && (
+                  <Button data-testid={`view-candidate-btn-${app.id}`} variant="outline" size="sm" onClick={() => openCandidate({ app, match })}>View Candidate</Button>
+                  {!["shortlisted", "interview_scheduled", "interview_completed", "selected", "joined", "rejected", "withdrawn"].includes(app.status) && (
                     <Button data-testid={`shortlist-btn-${app.id}`} variant="outline" size="sm" className="text-emerald-700 border-emerald-200 hover:bg-emerald-50" disabled={busyId === app.id} onClick={() => setStatus(app, "shortlisted", "Candidate shortlisted")}>Shortlist</Button>
-                  )}
-                  {["shortlisted", "interview_scheduled"].includes(app.status) && (
-                    <Button data-testid={`select-btn-${app.id}`} size="sm" className="bg-emerald-600 hover:bg-emerald-700" disabled={busyId === app.id} onClick={() => setStatus(app, "selected", "Candidate selected")}>Select</Button>
-                  )}
-                  {!["rejected", "selected", "withdrawn"].includes(app.status) && (
-                    <Button data-testid={`reject-btn-${app.id}`} variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" disabled={busyId === app.id} onClick={() => setStatus(app, "rejected", "Candidate rejected")}>Reject</Button>
                   )}
                   {["shortlisted", "under_review", "submitted"].includes(app.status) && (
                     <Button data-testid={`schedule-interview-btn-${app.id}`} variant="outline" size="sm" className="text-cyan-700 border-cyan-200 hover:bg-cyan-50" onClick={() => setScheduleFor(app)}>
                       <CalendarClock className="h-3.5 w-3.5 mr-1.5" /> Schedule Interview
                     </Button>
+                  )}
+                  {app.status === "interview_completed" && (
+                    <Button data-testid={`select-btn-${app.id}`} size="sm" className="bg-emerald-600 hover:bg-emerald-700" disabled={busyId === app.id} onClick={() => { setJoiningFor(app); setJoiningDate(""); }}>Select</Button>
+                  )}
+                  {app.status === "selected" && (
+                    <Button data-testid={`mark-joined-btn-${app.id}`} size="sm" className="bg-green-600 hover:bg-green-700" disabled={busyId === app.id} onClick={() => setStatus(app, "joined", "Candidate marked joined")}>Mark Joined</Button>
+                  )}
+                  {!["rejected", "selected", "joined", "withdrawn"].includes(app.status) && (
+                    <Button data-testid={`reject-btn-${app.id}`} variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" disabled={busyId === app.id} onClick={() => setStatus(app, "rejected", "Candidate rejected")}>Reject</Button>
                   )}
                 </div>
               </CardContent>
@@ -163,8 +214,42 @@ export default function Candidates() {
                 </div>
               )}
               {!detail.app.nurse_name && <p className="text-sm text-slate-500">This application does not include a profile snapshot.</p>}
+              <div className="border-t border-slate-100 pt-3">
+                <p className="text-sm font-semibold text-slate-800 mb-2">Documents</p>
+                {candDocs.length === 0 ? (
+                  <p data-testid="candidate-documents-empty" className="text-sm text-slate-400">No documents uploaded by this candidate.</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {candDocs.map((d) => (
+                      <li key={d.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="flex items-center gap-2 min-w-0"><FileText className="h-3.5 w-3.5 text-slate-400 shrink-0" /> <span className="truncate">{d.file_name || d.doc_type}</span></span>
+                        {d.data_base64 && <Button data-testid={`candidate-doc-download-${d.id}`} variant="ghost" size="sm" onClick={() => downloadDoc(d)}><Download className="h-4 w-4" /></Button>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="border-t border-slate-100 pt-3">
+                <Label className="text-sm font-semibold text-slate-800">Private notes (only your hospital)</Label>
+                <Textarea data-testid="candidate-note-input" rows={3} className="mt-1.5" value={note} placeholder="Add private notes about this candidate..." onChange={(e) => setNote(e.target.value)} />
+                <Button data-testid="candidate-note-save-btn" size="sm" className="mt-2 bg-slate-800 hover:bg-slate-900" disabled={noteBusy} onClick={saveNote}>Save Note</Button>
+              </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!joiningFor} onOpenChange={(o) => !o && setJoiningFor(null)}>
+        <DialogContent data-testid="joining-date-dialog" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Select Candidate</DialogTitle>
+            <DialogDescription>Set the joining date for {joiningFor?.nurse_name || "this candidate"}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label>Joining date</Label>
+            <Input data-testid="joining-date-input" type="date" min={new Date().toISOString().slice(0, 10)} value={joiningDate} onChange={(e) => setJoiningDate(e.target.value)} />
+          </div>
+          <Button data-testid="confirm-select-btn" className="bg-emerald-600 hover:bg-emerald-700 w-full mt-2" disabled={busyId === joiningFor?.id} onClick={confirmSelect}>Confirm Selection</Button>
         </DialogContent>
       </Dialog>
 

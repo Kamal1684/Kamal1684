@@ -49,8 +49,9 @@ export default function Interviews() {
   if (!interviews) return <LoadingState label="Loading your interviews..." />;
 
   const today = new Date().toISOString().slice(0, 10);
-  const upcoming = interviews.filter((i) => (i.date || "") >= today);
-  const previous = interviews.filter((i) => (i.date || "") < today);
+  const isDone = (i) => i.status === "completed" || i.status === "cancelled";
+  const upcoming = interviews.filter((i) => !isDone(i) && (i.date || "") >= today);
+  const previous = interviews.filter((i) => isDone(i) || (i.date || "") < today);
   const detailType = detail && (detail.interview_type || detail.type);
 
   return (

@@ -169,9 +169,10 @@ def test_hospital_shortlist_interview_select(workflow_context):
     r = requests.patch(f"{API}/interview/{interview['id']}", headers=hA["headers"], json={"status": "completed"})
     assert r.status_code == 200
 
-    # Select candidate
-    r = requests.patch(f"{API}/application/{app_id}", headers=hA["headers"], json={"status": "selected"})
-    assert r.status_code == 200
+    # Select candidate (new contract: joining_date required)
+    r = requests.patch(f"{API}/application/{app_id}", headers=hA["headers"],
+                       json={"status": "selected", "joining_date": "2030-03-01"})
+    assert r.status_code == 200, r.text
     assert r.json()["status"] == "selected"
 
     # Nurse sees selected

@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { FileText, Check, Building2 } from "lucide-react";
+import { FileText, Check, Building2, PartyPopper } from "lucide-react";
 import api, { apiError } from "../../lib/api";
 import { APPLICATION_STEPS, appStatusMeta, fmtDate } from "../../lib/status";
 import { AppStatusBadge } from "../../components/nurse/Badges";
 import { LoadingState, ErrorState, EmptyState } from "../../components/nurse/States";
 import { Card, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../components/ui/dialog";
+import { toast } from "sonner";
 
 function StatusTracker({ status }) {
   if (status === "rejected" || status === "withdrawn") {
@@ -16,7 +18,8 @@ function StatusTracker({ status }) {
       </p>
     );
   }
-  const idx = APPLICATION_STEPS.findIndex((s) => s.key === status);
+  const effective = status === "joined" ? "selected" : status;
+  const idx = APPLICATION_STEPS.findIndex((s) => s.key === effective);
   const current = idx === -1 ? 0 : idx;
   return (
     <div className="flex items-center w-full overflow-x-auto pb-1" data-testid="application-status-tracker">
@@ -43,17 +46,44 @@ function StatusTracker({ status }) {
 export default function Applications() {
   const [apps, setApps] = useState(null);
   const [error, setError] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const [congrats, setCongrats] = useState(null);
 
   const load = useCallback(() => {
     setError(null);
     setApps(null);
-    api.get("/application").then((r) => setApps(r.data || [])).catch((e) => setError(apiError(e)));
+    api.get("/application").then((r) => {
+      const list = r.data || [];
+      setApps(list);
+      const won = list.find((a) => ["selected", "joined"].includes(a.status) && localStorage.getItem(`nc_congrats_${a.id}`) !== "1");
+      if (won) setCongrats(won);
+    }).catch((e) => setError(apiError(e)));
   }, []);
 
   useEffect(load, [load]);
 
+  const withdraw = async (a) => {
+    setBusyId(a.id);
+    try {
+      const { data } = await api.patch(`/application/${a.id}`, { status: "withdrawn", updated_at: new Date().toISOString() });
+      setApps((list) => list.map((x) => (x.id === a.id ? data : x)));
+      toast.success("Application withdrawn");
+    } catch (e) {
+      toast.error(apiError(e, "Could not withdraw application"));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const dismissCongrats = () => {
+    if (congrats) localStorage.setItem(`nc_congrats_${congrats.id}`, "1");
+    setCongrats(null);
+  };
+
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!apps) return <LoadingState label="Loading your applications..." />;
+
+  const WITHDRAWABLE = new Set(["submitted", "under_review", "shortlisted", "interview_scheduled", "interview_completed"]);
 
   return (
     <div data-testid="applications-page" className="space-y-6">
@@ -78,8 +108,16 @@ export default function Applications() {
                     <p className="text-xs text-slate-400 mt-1">
                       Applied {fmtDate(a.created_at)}{a.updated_at ? ` · Last updated ${fmtDate(a.updated_at)}` : ""}
                     </p>
+                    {["selected", "joined"].includes(a.status) && a.joining_date && (
+                      <p data-testid={`joining-date-${a.id}`} className="text-xs font-medium text-emerald-700 mt-1">Joining date: {fmtDate(a.joining_date)}</p>
+                    )}
                   </div>
-                  <AppStatusBadge status={a.status} testId={`application-status-${a.id}`} />
+                  <div className="flex flex-col items-end gap-2">
+                    <AppStatusBadge status={a.status} testId={`application-status-${a.id}`} />
+                    {WITHDRAWABLE.has(a.status) && (
+                      <Button data-testid={`withdraw-application-btn-${a.id}`} variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" disabled={busyId === a.id} onClick={() => withdraw(a)}>Withdraw</Button>
+                    )}
+                  </div>
                 </div>
                 <StatusTracker status={a.status} />
               </CardContent>
@@ -87,6 +125,24 @@ export default function Applications() {
           ))}
         </div>
       )}
+
+      <Dialog open={!!congrats} onOpenChange={(o) => !o && dismissCongrats()}>
+        <DialogContent data-testid="congratulations-dialog" className="max-w-sm text-center">
+          <DialogHeader>
+            <div className="mx-auto h-14 w-14 rounded-full bg-emerald-50 flex items-center justify-center mb-2">
+              <PartyPopper className="h-7 w-7 text-emerald-600" />
+            </div>
+            <DialogTitle className="font-heading text-xl">Congratulations!</DialogTitle>
+            <DialogDescription>
+              You have been selected{congrats?.job_title ? ` for ${congrats.job_title}` : ""} at <span className="font-semibold text-slate-800">{congrats?.hospital_name || "the hospital"}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          {congrats?.joining_date && (
+            <p data-testid="congrats-joining-date" className="text-sm text-slate-700">Your joining date is <span className="font-semibold text-emerald-700">{fmtDate(congrats.joining_date)}</span>.</p>
+          )}
+          <Button data-testid="congrats-dismiss-btn" className="bg-emerald-600 hover:bg-emerald-700 mt-2" onClick={dismissCongrats}>Great, thanks!</Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

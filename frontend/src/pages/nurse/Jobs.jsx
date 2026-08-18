@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { SearchX, Building2 } from "lucide-react";
 import api, { apiError } from "../../lib/api";
-import { computeMatch, nurseSnapshot } from "../../lib/match";
+import { computeMatch, nurseSnapshot, isProfileComplete } from "../../lib/match";
 import { fmtSalary } from "../../lib/status";
 import { JobCard, JobMeta } from "../../components/nurse/JobCard";
 import { VerifiedHospitalBadge } from "../../components/nurse/Badges";
@@ -81,6 +81,10 @@ export default function Jobs() {
   };
 
   const applyJob = async (job) => {
+    if (!isProfileComplete(profile)) {
+      toast.error("Complete your profile (name, mobile, city, qualification, experience, departments) before applying.");
+      return;
+    }
     setBusyId(job.id);
     try {
       await api.post("/application", { job_id: job.id, ...snapshotFields(job), ...nurseSnapshot(profile) });
@@ -146,6 +150,12 @@ export default function Jobs() {
         </Card>
 
         <div className="lg:col-span-3 space-y-4">
+          {!isProfileComplete(profile) && (
+            <div data-testid="profile-incomplete-banner" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-center justify-between gap-3 flex-wrap">
+              <span>Complete your profile to apply. You can still view job details.</span>
+              <Button asChild size="sm" variant="outline" className="border-amber-300 text-amber-800" data-testid="complete-profile-cta"><a href="/nurse/profile">Complete Profile</a></Button>
+            </div>
+          )}
           {filtered.length === 0 ? (
             <EmptyState testId="jobs-empty-state" icon={SearchX} title={jobs.length === 0 ? "No published jobs yet" : "No jobs match your filters"}
               description={jobs.length === 0 ? "Hospitals haven't published any active jobs yet. Check back soon." : "Try broadening your search filters."}

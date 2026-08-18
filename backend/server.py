@@ -408,6 +408,44 @@ async def mark_alerts_read(user=Depends(current_user)):
     return {"updated": result.modified_count}
 
 
+@api.get("/candidate-documents/{application_id}")
+async def candidate_documents(application_id: str, user=Depends(current_user)):
+    """A hospital may view documents of nurses who applied to its own jobs."""
+    appdoc = await db.applications.find_one({"id": application_id}, {"_id": 0})
+    if not appdoc:
+        raise HTTPException(404, "Application not found")
+    if user.get("is_admin") is not True:
+        await job_for_hospital(appdoc["job_id"], user)
+    return await db.documents.find({"owner_id": appdoc["nurse_id"]}, {"_id": 0}).to_list(100)
+
+
+@api.get("/candidate-notes/{application_id}")
+async def get_candidate_notes(application_id: str, user=Depends(current_user)):
+    appdoc = await db.applications.find_one({"id": application_id}, {"_id": 0})
+    if not appdoc:
+        raise HTTPException(404, "Application not found")
+    if user.get("is_admin") is not True:
+        await job_for_hospital(appdoc["job_id"], user)
+    note = await db.candidate_notes.find_one({"application_id": application_id}, {"_id": 0})
+    return note or {"application_id": application_id, "note": ""}
+
+
+@api.post("/candidate-notes/{application_id}")
+async def set_candidate_notes(application_id: str, body: ProfileInput, user=Depends(current_user)):
+    appdoc = await db.applications.find_one({"id": application_id}, {"_id": 0})
+    if not appdoc:
+        raise HTTPException(404, "Application not found")
+    if user.get("is_admin") is not True:
+        await job_for_hospital(appdoc["job_id"], user)
+    note = (body.model_dump() or {}).get("note", "")
+    await db.candidate_notes.update_one(
+        {"application_id": application_id},
+        {"$set": {"application_id": application_id, "hospital_id": hospital_key(user), "note": note, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"application_id": application_id, "note": note}
+
+
 
 @api.get("/{resource}")
 async def list_resource(resource: str, user=Depends(current_user)):
@@ -501,9 +539,18 @@ async def update(resource: str, item_id: str, body: ProfileInput, user=Depends(c
     doc = clean(await collection.find_one({"id": item_id}))
     if not doc: raise HTTPException(404, "Record not found")
     if resource == "application":
-        if user.get("is_admin") is not True:
+        is_owner_nurse = doc.get("nurse_id") == user["id"]
+        if user.get("is_admin") is not True and not is_owner_nurse:
             await job_for_hospital(doc["job_id"], user)
-        if doc.get("nurse_id") == user["id"] and any(k in data for k in {"status", "shortlisted", "rejected"}): raise HTTPException(403, "Applicants cannot change application status")
+        if is_owner_nurse and user.get("is_admin") is not True:
+            if (set(data.keys()) - {"status", "updated_at"}) or data.get("status") != "withdrawn":
+                raise HTTPException(403, "Applicants can only withdraw their own application")
+        if user.get("is_admin") is not True and data.get("status") == "selected":
+            completed_iv = await db.interviews.find_one({"application_id": item_id, "status": "completed"})
+            if not completed_iv:
+                raise HTTPException(400, "Interview must be completed before selecting this candidate")
+            if not (data.get("joining_date") or doc.get("joining_date")):
+                raise HTTPException(400, "A joining date is required to select this candidate")
     elif resource == "interview":
         app_doc = await db.applications.find_one({"id": doc.get("application_id")}, {"_id": 0})
         if user.get("is_admin") is not True: await job_for_hospital(app_doc["job_id"], user)
@@ -524,6 +571,10 @@ async def update(resource: str, item_id: str, body: ProfileInput, user=Depends(c
     updated = clean(await collection.find_one({"id": item_id}))
     if resource == "job" and not was_live and is_job_live(updated):
         await generate_job_alerts(updated)
+    if resource == "interview" and data.get("status") == "completed":
+        appdoc = await db.applications.find_one({"id": updated.get("application_id")})
+        if appdoc and appdoc.get("status") in {"submitted", "under_review", "shortlisted", "interview_scheduled"}:
+            await db.applications.update_one({"id": appdoc["id"]}, {"$set": {"status": "interview_completed", "updated_at": datetime.now(timezone.utc).isoformat()}})
     if resource == "hospital" and user.get("is_admin") is True and "verification_status" in data:
         await db.jobs.update_many({"hospital_id": updated.get("owner_id")}, {"$set": {"hospital_verified": data["verification_status"] == "verified"}})
     return updated

@@ -14,7 +14,7 @@ export default function Hired() {
     setError(null);
     setApps(null);
     api.get("/application")
-      .then((r) => setApps((r.data || []).filter((a) => a.status === "selected")))
+      .then((r) => setApps((r.data || []).filter((a) => ["selected", "joined"].includes(a.status))))
       .catch((e) => setError(apiError(e)));
   }, []);
 
@@ -46,7 +46,8 @@ export default function Hired() {
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300 font-medium">Selected</Badge>
+                  <Badge variant="outline" className={a.status === "joined" ? "bg-green-100 text-green-800 border-green-300 font-medium" : "bg-emerald-100 text-emerald-800 border-emerald-300 font-medium"}>{a.status === "joined" ? "Joined" : "Selected"}</Badge>
+                  {a.joining_date && <span data-testid={`hired-joining-date-${a.id}`} className="text-xs text-slate-500">Joining {fmtDate(a.joining_date)}</span>}
                   <span className="text-xs text-slate-400">Selected {fmtDate(a.updated_at || a.created_at)}</span>
                 </div>
               </CardContent>

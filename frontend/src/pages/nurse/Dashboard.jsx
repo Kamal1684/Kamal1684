@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Bookmark, FileText, Star, CalendarClock, UserRound, ArrowRight } from "lucide-react";
+import { Bookmark, FileText, Star, CalendarClock, UserRound, ArrowRight, Bell } from "lucide-react";
 import api, { apiError } from "../../lib/api";
 import { profileCompletion } from "../../lib/match";
-import { fmtDate } from "../../lib/status";
+import { fmtDate, appStatusMeta } from "../../lib/status";
 import { LoadingState, ErrorState, EmptyState } from "../../components/nurse/States";
 import { VerificationBadge, AppStatusBadge } from "../../components/nurse/Badges";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -44,15 +44,28 @@ export default function Dashboard() {
   const { profile, saved, apps, interviews } = data;
   const completion = profileCompletion(profile);
   const today = new Date().toISOString().slice(0, 10);
-  const upcoming = interviews.filter((i) => (i.date || "") >= today);
-  const active = apps.filter((a) => !["rejected", "withdrawn", "selected"].includes(a.status));
+  const upcoming = interviews.filter((i) => (i.date || "") >= today && i.status !== "cancelled" && i.status !== "completed");
+  const active = apps.filter((a) => !["rejected", "withdrawn", "selected", "joined"].includes(a.status));
   const shortlisted = apps.filter((a) => a.status === "shortlisted");
+  const vstatus = profile?.verification_status || "pending";
+  const notifications = [
+    ...upcoming.map((i) => ({ text: `Interview ${i.job_title ? `for ${i.job_title} ` : ""}on ${fmtDate(i.date)}${i.time ? ` at ${i.time}` : ""}` })),
+    ...apps.filter((a) => a.status && a.status !== "submitted").map((a) => ({ text: `${a.job_title || "Application"} is now ${appStatusMeta(a.status).label}` })),
+  ].slice(0, 6);
 
   return (
     <div data-testid="nurse-dashboard" className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl sm:text-3xl font-bold text-slate-900">Dashboard</h1>
         <p className="text-sm text-slate-500 mt-1">Your job search at a glance</p>
+      </div>
+
+      <div data-testid="nurse-verification-banner" className={`rounded-lg border px-4 py-3 flex items-center justify-between gap-3 flex-wrap ${vstatus === "verified" ? "bg-emerald-50 border-emerald-200" : vstatus === "rejected" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-slate-700">Profile verification status:</span>
+          <VerificationBadge status={vstatus} testId="dashboard-verification-badge" />
+        </div>
+        <span className="text-xs text-slate-500">{vstatus === "verified" ? "Your profile is verified by our team." : vstatus === "rejected" ? "Your verification was rejected — please update your profile." : "Your profile is pending verification."}</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -151,6 +164,26 @@ export default function Dashboard() {
                         <p className="text-xs text-slate-500">{i.hospital_name || ""} · {fmtDate(i.date)}{i.time ? ` at ${i.time}` : ""}</p>
                       </div>
                       <span className="text-xs font-medium text-cyan-700 bg-cyan-50 border border-cyan-200 rounded-full px-2.5 py-1 capitalize">{i.interview_type || i.type || "Interview"}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card data-testid="dashboard-notifications-card" className="border-slate-200">
+            <CardHeader className="pb-3 flex-row items-center gap-2 space-y-0">
+              <Bell className="h-4 w-4 text-blue-600" />
+              <CardTitle className="font-heading text-lg">Notifications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {notifications.length === 0 ? (
+                <p data-testid="dashboard-notifications-empty" className="text-sm text-slate-400">No notifications yet.</p>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {notifications.map((n, i) => (
+                    <li key={i} className="py-2.5 text-sm text-slate-600 flex items-start gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /> {n.text}
                     </li>
                   ))}
                 </ul>

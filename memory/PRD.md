@@ -301,3 +301,27 @@ side flag, never a client-supplied role. Do NOT add demo/seed data yet.
     `components/nurse/JobCard.jsx` and the Job Details dialog — now valid, no
     console hydration warning.
 - No backend/auth/RLS/DB-structure changes. All `wftest_`/smoke test data purged.
+
+### 2026-06 — Nurse + Hospital workflow enhancements (WF8) — testing agent iteration_9 (87/87)
+User choices: hospital picks joining date at Select time; "Mark Joined" button for Selected→Joined;
+hospital can view docs of ITS OWN applicants only; profile "complete" = full_name+phone+city+
+qualification+experience_years+departments.
+- **Backend (server.py)** — no auth/RLS/DB-structure change, only scoped additions:
+  - PATCH /application: Select (`status=selected`) now REQUIRES a completed interview AND a
+    joining_date, else HTTP 400 (enforced at API level, not just UI). Nurse may PATCH only
+    `status=withdrawn` on own application (any other field/status → 403).
+  - PATCH /interview `status=completed` cascades the linked application to `interview_completed`.
+  - New scoped endpoints: `GET /candidate-documents/{application_id}` (hospital owner/admin only),
+    `GET/POST /candidate-notes/{application_id}` (private notes stored in separate `candidate_notes`
+    collection — never leaked to the nurse; other hospitals 403).
+- **Nurse frontend**: Interview Completed step in timeline; Apply blocked until profile complete
+  (banner + View still allowed); Withdraw application; Congratulations popup (hospital name +
+  joining date) on selection; completed/cancelled interviews → Previous Interviews; Dashboard
+  Pending/Verified banner at top + Notifications card below Interviews; "Save Documents" button.
+- **Hospital frontend**: "Applications" nav item; action order View→Shortlist→Schedule→(Interview
+  Completed)→Select; Select gated to `interview_completed` + joining-date dialog; Mark Joined;
+  candidate documents + private notes in View Candidate dialog; Hired shows Selected+Joined with
+  joining date.
+- Tests: `test_workflow_wf8.py` (15 new). All test data (`wf8_` prefix) purged. Implemented in
+  PREVIEW; production redeploy pending by user.
+

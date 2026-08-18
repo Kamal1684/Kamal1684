@@ -30,6 +30,17 @@ export function computeMatch(nurse, job) {
   return { score: Math.round((earned / total) * 100), breakdown: checks };
 }
 
+export const REQUIRED_PROFILE_FIELDS = ["full_name", "phone", "city", "qualification", "experience_years", "departments"];
+
+export function isProfileComplete(nurse) {
+  if (!nurse) return false;
+  return REQUIRED_PROFILE_FIELDS.every((f) => {
+    const v = nurse[f];
+    if (Array.isArray(v)) return v.length > 0;
+    return v !== undefined && v !== null && String(v).trim() !== "";
+  });
+}
+
 export const PROFILE_FIELDS = [
   "full_name", "phone", "city", "state", "qualification", "registration_number",
   "experience_years", "departments", "preferred_location", "expected_salary", "preferred_shift",

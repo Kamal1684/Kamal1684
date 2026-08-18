@@ -12,7 +12,7 @@ const NAV = [
   { to: "/hospital/dashboard", label: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
   { to: "/hospital/profile", label: "Hospital Profile", icon: Building2, id: "profile" },
   { to: "/hospital/jobs", label: "Jobs", icon: Briefcase, id: "jobs" },
-  { to: "/hospital/candidates", label: "Candidates", icon: Users, id: "candidates" },
+  { to: "/hospital/candidates", label: "Applications", icon: Users, id: "candidates" },
   { to: "/hospital/interviews", label: "Interviews", icon: CalendarClock, id: "interviews" },
   { to: "/hospital/hired", label: "Hired Nurses", icon: UserCheck, id: "hired" },
 ];

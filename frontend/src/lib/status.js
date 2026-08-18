@@ -3,6 +3,7 @@ export const APPLICATION_STEPS = [
   { key: "under_review", label: "Under Review" },
   { key: "shortlisted", label: "Shortlisted" },
   { key: "interview_scheduled", label: "Interview Scheduled" },
+  { key: "interview_completed", label: "Interview Completed" },
   { key: "selected", label: "Selected" },
 ];
 
@@ -11,7 +12,9 @@ export const APP_STATUS_META = {
   under_review: { label: "Under Review", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
   shortlisted: { label: "Shortlisted", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   interview_scheduled: { label: "Interview Scheduled", cls: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+  interview_completed: { label: "Interview Completed", cls: "bg-teal-50 text-teal-700 border-teal-200" },
   selected: { label: "Selected", cls: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+  joined: { label: "Joined", cls: "bg-green-100 text-green-800 border-green-300" },
   rejected: { label: "Rejected", cls: "bg-red-50 text-red-700 border-red-200" },
   withdrawn: { label: "Withdrawn", cls: "bg-slate-100 text-slate-600 border-slate-200" },
 };
