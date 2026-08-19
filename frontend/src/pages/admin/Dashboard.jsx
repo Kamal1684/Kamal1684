@@ -2,11 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { UserRound, Building2, Briefcase, FileText, ShieldCheck, Clock } from "lucide-react";
 import api, { apiError } from "../../lib/api";
-import { jobState } from "../../lib/status";
 import { LoadingState, ErrorState } from "../../components/nurse/States";
 import { Card, CardContent } from "../../components/ui/card";
-
-const PENDING = new Set(["pending", "under_review"]);
 
 const StatCard = ({ label, value, icon: Icon, testId, accent = "text-indigo-600 bg-indigo-50", to }) => (
   <Card data-testid={testId} className="border-slate-200 hover:shadow-sm transition-shadow">
@@ -31,8 +28,8 @@ export default function AdminDashboard() {
   const load = useCallback(() => {
     setError(null);
     setData(null);
-    Promise.all([api.get("/admin/users"), api.get("/nurse_profile"), api.get("/hospital"), api.get("/job"), api.get("/application")])
-      .then(([u, np, h, j, a]) => setData({ users: u.data || [], nurses: np.data || [], hospitals: h.data || [], jobs: j.data || [], apps: a.data || [] }))
+    api.get("/admin/stats")
+      .then((r) => setData(r.data || {}))
       .catch((e) => setError(apiError(e)));
   }, []);
 
@@ -41,38 +38,37 @@ export default function AdminDashboard() {
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return <LoadingState label="Loading platform overview..." />;
 
-  const { users, nurses, hospitals, jobs, apps } = data;
-  const totalNurses = users.filter((u) => u.account_type === "nurse").length;
-  const totalHospitals = users.filter((u) => u.account_type === "hospital").length;
-  const verifiedNurses = nurses.filter((n) => n.verification_status === "verified").length;
-  const pendingNurses = nurses.filter((n) => PENDING.has(n.verification_status || "pending")).length;
-  const verifiedHospitals = hospitals.filter((h) => h.verification_status === "verified").length;
-  const pendingHospitals = hospitals.filter((h) => PENDING.has(h.verification_status || "pending")).length;
-  const pendingJobs = jobs.filter((j) => jobState(j) === "pending_approval").length;
-  const activeJobs = jobs.filter((j) => jobState(j) === "published").length;
+  const s = data;
+  const totalNurses = s.total_nurses || 0;
+  const totalHospitals = s.total_hospitals || 0;
 
   const stats = [
     { testId: "stat-total-nurses", label: "Total Nurses", value: totalNurses, icon: UserRound, to: "/admin/nurses" },
-    { testId: "stat-verified-nurses", label: "Verified Nurses", value: verifiedNurses, icon: ShieldCheck, accent: "text-emerald-600 bg-emerald-50", to: "/admin/nurses" },
-    { testId: "stat-pending-nurses", label: "Pending Nurse Verification", value: pendingNurses, icon: Clock, accent: "text-amber-600 bg-amber-50", to: "/admin/verification" },
+    { testId: "stat-verified-nurses", label: "Verified Nurses", value: s.verified_nurses || 0, icon: ShieldCheck, accent: "text-emerald-600 bg-emerald-50", to: "/admin/nurses" },
+    { testId: "stat-pending-nurses", label: "Pending / Unverified Nurses", value: s.pending_nurses || 0, icon: Clock, accent: "text-amber-600 bg-amber-50", to: "/admin/verification" },
     { testId: "stat-total-hospitals", label: "Total Hospitals", value: totalHospitals, icon: Building2, to: "/admin/hospitals" },
-    { testId: "stat-verified-hospitals", label: "Verified Hospitals", value: verifiedHospitals, icon: ShieldCheck, accent: "text-emerald-600 bg-emerald-50", to: "/admin/hospitals" },
-    { testId: "stat-pending-hospitals", label: "Pending Hospital Verification", value: pendingHospitals, icon: Clock, accent: "text-amber-600 bg-amber-50", to: "/admin/verification" },
-    { testId: "stat-total-jobs", label: "Total Jobs", value: jobs.length, icon: Briefcase, to: "/admin/jobs" },
-    { testId: "stat-pending-jobs", label: "Pending Job Approvals", value: pendingJobs, icon: Clock, accent: "text-amber-600 bg-amber-50", to: "/admin/jobs" },
-    { testId: "stat-active-jobs", label: "Active Jobs", value: activeJobs, icon: Briefcase, accent: "text-emerald-600 bg-emerald-50", to: "/admin/jobs" },
-    { testId: "stat-total-applications", label: "Total Applications", value: apps.length, icon: FileText, to: "/admin/applications" },
+    { testId: "stat-verified-hospitals", label: "Verified Hospitals", value: s.verified_hospitals || 0, icon: ShieldCheck, accent: "text-emerald-600 bg-emerald-50", to: "/admin/hospitals" },
+    { testId: "stat-pending-hospitals", label: "Pending / Unverified Hospitals", value: s.pending_hospitals || 0, icon: Clock, accent: "text-amber-600 bg-amber-50", to: "/admin/verification" },
+    { testId: "stat-total-jobs", label: "Total Jobs", value: s.total_jobs || 0, icon: Briefcase, to: "/admin/jobs" },
+    { testId: "stat-pending-jobs", label: "Pending Job Approvals", value: s.pending_jobs || 0, icon: Clock, accent: "text-amber-600 bg-amber-50", to: "/admin/jobs" },
+    { testId: "stat-active-jobs", label: "Active Jobs", value: s.active_jobs || 0, icon: Briefcase, accent: "text-emerald-600 bg-emerald-50", to: "/admin/jobs" },
+    { testId: "stat-total-applications", label: "Total Applications", value: s.total_applications || 0, icon: FileText, to: "/admin/applications" },
+    { testId: "stat-selected-joined", label: "Selected / Joined", value: (s.selected || 0) + (s.joined || 0), icon: ShieldCheck, accent: "text-green-600 bg-green-50", to: "/admin/reports" },
   ];
 
   return (
     <div data-testid="admin-dashboard" className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl sm:text-3xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-1">Platform overview — live data</p>
+        <p className="text-sm text-slate-500 mt-1">Platform overview — accurate live database counts</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {stats.map((s) => <StatCard key={s.testId} {...s} />)}
+        {stats.map((st) => <StatCard key={st.testId} {...st} />)}
       </div>
+      <p data-testid="admin-count-reconciliation" className="text-xs text-slate-400">
+        Total Nurses ({totalNurses}) = Verified ({s.verified_nurses || 0}) + Pending/Unverified ({s.pending_nurses || 0}) ·
+        Total Hospitals ({totalHospitals}) = Verified ({s.verified_hospitals || 0}) + Pending/Unverified ({s.pending_hospitals || 0})
+      </p>
       {totalNurses === 0 && totalHospitals === 0 && (
         <Card className="border-dashed border-slate-200 bg-slate-50/60">
           <CardContent data-testid="admin-dashboard-empty" className="p-8 text-center text-sm text-slate-500">

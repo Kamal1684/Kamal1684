@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 10 - Verified NurseConnect Admin Portal enhancements. Added /app/backend/tests/test_workflow_wf10.py (8 new tests) covering: /api/admin/stats auth (401/403), shape+identity guarantee (total = verified + pending for both nurses & hospitals), stats-move-on-registration, admin PATCH /nurse_profile/<id> and /hospital/<id> with persistence via GET, admin-approval reflected in stats, and selected/joined report data-source integrity via admin /application, /job, /hospital. Full backend suite: 95/95 pass (87 preexisting + 8 new). Frontend E2E via Playwright: admin login -> /admin/dashboard renders all 12 required stat testids; identity assertion 1296=10+1286 (nurses) and 563=29+534 (hospitals) holds in the live UI; admin-count-reconciliation text matches exactly. Verification page shows EXACTLY 2 sections (verification-hospitals-section, verification-nurses-section) with hospital/nurse search boxes and vc-docs-hospital/vc-docs-nurse buttons opening verification-documents-dialog. Nurses page: nurse-filter-search present, review dialog opens, Edit Profile reveals edit-nurse-full_name etc., save-nurse-btn PATCHes and change persists across reload (verified with WF10Edit_<ts>). Hospitals page: hospital-filter-search, edit-hospital-btn -> edit-hospital-name + save-hospital-btn all present. Reports page (/admin/reports, admin-sidebar-nav-reports) shows exact columns Nurse Name|Hospital Name|Hospital Address|Joining Date|Status with all 4 filter testids interactive. No blocking issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Selected/Joined report", "issues": ["Several selected/joined rows show '\u2014' for Nurse Name and/or Hospital Name and Hospital Address because the applications were created in prior iterations without nurse_name/hospital_name snapshotted on the app document, and the joined hospital record has no address fields. Frontend renders correctly given the data; consider back-filling from users/nurse_profiles when snapshot fields are missing so admins see meaningful values."]},
+      {"screen": "Admin Dashboard", "issues": ["Preview DB is heavily inflated with prior iteration test data (1296 nurses, 563 hospitals, 445 jobs) - cosmetic only, does not affect correctness. Consider a purge of wftest_/wf8_/wf10_ before demo."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_workflow_wf10.py",
+    "/app/test_reports/pytest/iteration10_wf10.xml",
+    "/app/test_reports/pytest/iteration10_full.xml"
+  ],
+  "action_items": [
+    "(Low) Consider joining nurse_name from users/nurse_profiles collection in Reports.jsx when app.nurse_name is missing, so historical rows aren't blank.",
+    "(Low/Optional) Back-fill hospital.address on prior selected/joined applications' linked hospitals so Hospital Address column populates.",
+    "(Carryover from prior iterations) JobCard <div>-inside-<p> hydration warning; same-second JWT invalidation race."
+  ],
+  "critical_code_review_comments": [
+    "server.py:405-429 GET /admin/stats: identity (total = verified + pending) is enforced by construction (pending = max(total - verified, 0)); admin-only guard is correct.",
+    "server.py:587-593 admin bypass on verification_status/rejection_reason writes is correct; non-admins still stripped from setting verification_status.",
+    "server.py:605-606 hospital verification -> job.hospital_verified cascade is only applied when admin sets verification_status; good.",
+    "Reports.jsx joins hospital.address+city+state+pincode from GET /hospital (admin sees all) - correct approach; degrades gracefully to '\u2014' when snapshot is missing (see design_issues).",
+    "Verification.jsx renders exactly 2 sections; useAdminDocuments hook fetches once and DocumentList filters by ownerId - efficient.",
+    "Nurses.jsx/Hospitals.jsx PATCH via generic /nurse_profile/<id> and /hospital/<id>; admin bypass in server allows this without ownership check - confirmed persistent via UI reload.",
+    "Dashboard.jsx admin-count-reconciliation string matches the API identity exactly and is user-visible."
+  ],
+  "updated_files": ["/app/backend/tests/test_workflow_wf10.py (new)"],
+  "success_rate": {"backend": "100% (95/95: 87 preexisting + 8 new WF10)", "frontend": "100% on all required WF10 testids and flows"},
+  "test_credentials": "Admin: admin@nurseconnect-platform.com / AdminPass123!. Fresh workflow accounts registered live with wf10_ email prefix / StrongPass123! + random Indian mobile.",
+  "seed_data_creation": "None. Only ephemeral wf10_ accounts and their nurse_profile / hospital records created via public /api/auth/register + authenticated POSTs during test execution; safe to purge by wf10_ email prefix.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "test_workflow_wf10.py is the regression source of truth for /api/admin/stats identity, admin PATCH bypass on nurse_profile/hospital, and selected/joined report data integrity. Prior wf8 file still covers select-gating, interview cascade, nurse-only withdraw, mark joined, and candidate-documents/notes privacy. Combined 95 tests. Preview DB has heavy legacy test data; live totals ~1296 nurses / 563 hospitals / 445 jobs.",
+  "rca of the issue": "No functional bugs. Report table shows some blank rows because legacy selected/joined applications lack nurse_name/hospital_name snapshots and linked hospitals have no address fields; this is a data-history artefact, not a code defect."
+}

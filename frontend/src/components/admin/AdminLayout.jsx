@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, UserRound, Building2, Briefcase, FileText, ShieldCheck, Settings, LogOut, Menu, HeartPulse, Bell } from "lucide-react";
+import { LayoutDashboard, UserRound, Building2, Briefcase, FileText, ShieldCheck, Settings, LogOut, Menu, HeartPulse, Bell, ClipboardList } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import { jobState } from "../../lib/status";
@@ -16,6 +16,7 @@ const NAV = [
   { to: "/admin/jobs", label: "Job Approvals", icon: Briefcase, id: "jobs" },
   { to: "/admin/applications", label: "Applications", icon: FileText, id: "applications" },
   { to: "/admin/verification", label: "Verification", icon: ShieldCheck, id: "verification" },
+  { to: "/admin/reports", label: "Selected/Joined", icon: ClipboardList, id: "reports" },
   { to: "/admin/settings", label: "Settings", icon: Settings, id: "settings" },
 ];
 

@@ -402,6 +402,33 @@ async def admin_users(user=Depends(current_user)):
     return await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(5000)
 
 
+@api.get("/admin/stats")
+async def admin_stats(user=Depends(current_user)):
+    if user.get("is_admin") is not True:
+        raise HTTPException(403, "Admin access required")
+    total_nurses = await db.users.count_documents({"account_type": "nurse"})
+    verified_nurses = await db.nurse_profiles.count_documents({"verification_status": "verified"})
+    total_hospitals = await db.users.count_documents({"account_type": "hospital"})
+    verified_hospitals = await db.hospitals.count_documents({"verification_status": "verified"})
+    total_jobs = await db.jobs.count_documents({})
+    active_jobs = await db.jobs.count_documents({"published": True, "approved": True, "status": {"$ne": "closed"}})
+    pending_jobs = await db.jobs.count_documents({"published": True, "approved": {"$ne": True}, "status": {"$ne": "rejected"}})
+    return {
+        "total_nurses": total_nurses,
+        "verified_nurses": verified_nurses,
+        "pending_nurses": max(total_nurses - verified_nurses, 0),
+        "total_hospitals": total_hospitals,
+        "verified_hospitals": verified_hospitals,
+        "pending_hospitals": max(total_hospitals - verified_hospitals, 0),
+        "total_jobs": total_jobs,
+        "active_jobs": active_jobs,
+        "pending_jobs": pending_jobs,
+        "total_applications": await db.applications.count_documents({}),
+        "selected": await db.applications.count_documents({"status": "selected"}),
+        "joined": await db.applications.count_documents({"status": "joined"}),
+    }
+
+
 @api.post("/alerts/mark-read")
 async def mark_alerts_read(user=Depends(current_user)):
     result = await db.job_alerts.update_many({"nurse_id": user["id"], "read": False}, {"$set": {"read": True}})

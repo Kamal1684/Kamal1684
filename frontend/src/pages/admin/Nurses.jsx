@@ -17,8 +17,10 @@ export default function AdminNurses() {
   const [nurses, setNurses] = useState(null);
   const [emails, setEmails] = useState({});
   const [error, setError] = useState(null);
-  const [filters, setFilters] = useState({ status: "all", qualification: "", location: "" });
+  const [filters, setFilters] = useState({ search: "", status: "all", qualification: "", location: "" });
   const [detail, setDetail] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({});
   const [confirm, setConfirm] = useState(null);
   const [rejectFor, setRejectFor] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -42,12 +44,13 @@ export default function AdminNurses() {
     const has = (v, n) => String(v || "").toLowerCase().includes(n.toLowerCase());
     return nurses.filter((n) => {
       const st = n.verification_status || "pending";
+      if (filters.search && !(has(n.full_name, filters.search) || has(emails[n.owner_id], filters.search) || has(n.registration_number, filters.search))) return false;
       if (filters.status !== "all" && st !== filters.status) return false;
       if (filters.qualification && !has(n.qualification, filters.qualification)) return false;
       if (filters.location && !(has(n.city, filters.location) || has(n.state, filters.location) || has(n.preferred_location, filters.location))) return false;
       return true;
     });
-  }, [nurses, filters]);
+  }, [nurses, filters, emails]);
 
   const patch = async (nurse, payload, msg) => {
     setBusy(true);
@@ -65,7 +68,23 @@ export default function AdminNurses() {
     }
   };
 
-  const openDetail = async (n) => { setDetail(n); await ensureLoaded(); };
+  const openDetail = async (n) => { setDetail(n); setEditing(false); await ensureLoaded(); };
+
+  const startEdit = () => {
+    setForm({
+      full_name: detail.full_name || "", phone: detail.phone || "", qualification: detail.qualification || "",
+      registration_number: detail.registration_number || "", experience_years: detail.experience_years ?? "",
+      city: detail.city || "", state: detail.state || "", preferred_shift: detail.preferred_shift || "",
+      expected_salary: detail.expected_salary ?? "", departments: (detail.departments || []).join(", "),
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    const payload = { ...form, departments: form.departments ? form.departments.split(",").map((s) => s.trim()).filter(Boolean) : [] };
+    await patch(detail, payload, "Nurse profile updated");
+    setEditing(false);
+  };
 
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!nurses) return <LoadingState label="Loading nurses..." />;
@@ -78,6 +97,7 @@ export default function AdminNurses() {
       </div>
 
       <div className="flex flex-wrap gap-3">
+        <Input data-testid="nurse-filter-search" className="w-56" placeholder="Search name, email, reg. no." value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
         <Select value={filters.status} onValueChange={(v) => setFilters({ ...filters, status: v })}>
           <SelectTrigger data-testid="nurse-filter-status" className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -136,6 +156,21 @@ export default function AdminNurses() {
                 <DialogTitle className="font-heading flex items-center gap-2">{detail.full_name || "Nurse profile"} <VerificationBadge status={detail.verification_status} testId="detail-nurse-status" /></DialogTitle>
                 <DialogDescription>{emails[detail.owner_id] || ""}</DialogDescription>
               </DialogHeader>
+              {editing ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    ["full_name", "Full name"], ["phone", "Mobile"], ["qualification", "Qualification"],
+                    ["registration_number", "Registration number"], ["experience_years", "Experience (years)"],
+                    ["city", "City"], ["state", "State"], ["preferred_shift", "Preferred shift"],
+                    ["expected_salary", "Expected salary"], ["departments", "Departments (comma separated)"],
+                  ].map(([k, label]) => (
+                    <div key={k} className="space-y-1">
+                      <label className="text-xs text-slate-500">{label}</label>
+                      <Input data-testid={`edit-nurse-${k}`} value={form[k] ?? ""} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
               <dl className="space-y-2 text-sm">
                 {[
                   ["Mobile", detail.phone],
@@ -154,19 +189,30 @@ export default function AdminNurses() {
                   </div>
                 ))}
               </dl>
+              )}
               <div className="border-t border-slate-100 pt-3 space-y-2">
                 <p className="text-sm font-semibold text-slate-800">Verification documents</p>
                 <DocumentList docs={docs} ownerId={detail.owner_id} emptyText="No documents uploaded by this nurse." />
               </div>
               <div className="flex justify-end gap-2 flex-wrap pt-2">
-                {detail.verification_status !== "under_review" && detail.verification_status !== "verified" && (
-                  <Button data-testid="mark-under-review-btn" variant="outline" size="sm" disabled={busy} onClick={() => patch(detail, { verification_status: "under_review" }, "Marked under review")}>Mark Under Review</Button>
-                )}
-                {detail.verification_status !== "rejected" && (
-                  <Button data-testid="reject-nurse-btn" variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setRejectFor(detail)}>Reject</Button>
-                )}
-                {detail.verification_status !== "verified" && (
-                  <Button data-testid="approve-nurse-btn" size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => setConfirm(detail)}>Approve Nurse</Button>
+                {editing ? (
+                  <>
+                    <Button data-testid="cancel-edit-nurse-btn" variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+                    <Button data-testid="save-nurse-btn" size="sm" className="bg-blue-600 hover:bg-blue-700" disabled={busy} onClick={saveEdit}>Save Changes</Button>
+                  </>
+                ) : (
+                  <>
+                    <Button data-testid="edit-nurse-btn" variant="outline" size="sm" onClick={startEdit}>Edit Profile</Button>
+                    {detail.verification_status !== "under_review" && detail.verification_status !== "verified" && (
+                      <Button data-testid="mark-under-review-btn" variant="outline" size="sm" disabled={busy} onClick={() => patch(detail, { verification_status: "under_review" }, "Marked under review")}>Mark Under Review</Button>
+                    )}
+                    {detail.verification_status !== "rejected" && (
+                      <Button data-testid="reject-nurse-btn" variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setRejectFor(detail)}>Reject</Button>
+                    )}
+                    {detail.verification_status !== "verified" && (
+                      <Button data-testid="approve-nurse-btn" size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => setConfirm(detail)}>Approve Nurse</Button>
+                    )}
+                  </>
                 )}
               </div>
             </>

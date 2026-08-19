@@ -325,3 +325,24 @@ qualification+experience_years+departments.
 - Tests: `test_workflow_wf8.py` (15 new). All test data (`wf8_` prefix) purged. Implemented in
   PREVIEW; production redeploy pending by user.
 
+
+### 2026-06 — Admin Portal completion + platform polish (WF10) — testing agent iteration_10 (95/95)
+- **Backend**: new `GET /api/admin/stats` (admin-only, `count_documents`) — guarantees
+  Total Nurses = Verified + Pending/Unverified and Total Hospitals = Verified + Pending/Unverified
+  using accurate live DB counts (pending = total_accounts − verified_profiles). No RLS/auth change.
+- **Admin Dashboard** rewritten to consume `/admin/stats`; added a visible reconciliation line and a
+  Selected/Joined stat card.
+- **Verification page** reduced to EXACTLY 2 sections (Hospital Verification + Nurse Verification),
+  each with a search box and a "View Documents" dialog (reuses `useAdminDocuments`/`DocumentList`).
+- **Admin Nurses & Hospitals**: added a search box (name/email/reg-no or license) and full
+  **Edit Profile** capability (editable form → PATCH `/nurse_profile/{id}` or `/hospital/{id}`,
+  persisted; admin bypasses ownership, self-verification guard still applies to non-admins only).
+- **New Selected/Joined report** (`/admin/reports`, nav "Selected/Joined"): columns Nurse Name,
+  Hospital Name, Hospital Address, Joining Date, Status; filters by status (Selected/Joined) and
+  joining-date range + search. Back-fills nurse name (from nurse_profiles/users) and hospital
+  name/address (from hospitals) when application snapshots are missing.
+- Full workflow regression re-verified (register→profile→apply→shortlist→schedule→interview
+  completed→select+joining date→joined); RLS, password security, admin-by-is_admin all unchanged.
+- Backend suite **95/95** (87 + 8 new `test_workflow_wf10.py`). All leftover test data
+  (wf10_/wf8_/wftest_/diag_ — 44 accounts + cascade) purged. Implemented in PREVIEW; redeploy pending.
+

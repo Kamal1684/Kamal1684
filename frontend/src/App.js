@@ -28,6 +28,7 @@ import AdminHospitals from "./pages/admin/Hospitals";
 import AdminJobs from "./pages/admin/Jobs";
 import AdminApplications from "./pages/admin/Applications";
 import Verification from "./pages/admin/Verification";
+import AdminReports from "./pages/admin/Reports";
 import AdminSettings from "./pages/admin/Settings";
 import { LoadingState } from "./components/nurse/States";
 
@@ -137,6 +138,7 @@ function App() {
             <Route path="jobs" element={<AdminJobs />} />
             <Route path="applications" element={<AdminApplications />} />
             <Route path="verification" element={<Verification />} />
+            <Route path="reports" element={<AdminReports />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -17,8 +17,10 @@ export default function AdminHospitals() {
   const [hospitals, setHospitals] = useState(null);
   const [emails, setEmails] = useState({});
   const [error, setError] = useState(null);
-  const [filters, setFilters] = useState({ status: "all", location: "", type: "" });
+  const [filters, setFilters] = useState({ search: "", status: "all", location: "", type: "" });
   const [detail, setDetail] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({});
   const [confirm, setConfirm] = useState(null);
   const [rejectFor, setRejectFor] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -42,12 +44,13 @@ export default function AdminHospitals() {
     const has = (v, n) => String(v || "").toLowerCase().includes(n.toLowerCase());
     return hospitals.filter((h) => {
       const st = h.verification_status || "pending";
+      if (filters.search && !(has(h.name, filters.search) || has(emails[h.owner_id], filters.search) || has(h.license_number, filters.search))) return false;
       if (filters.status !== "all" && st !== filters.status) return false;
       if (filters.location && !(has(h.city, filters.location) || has(h.state, filters.location) || has(h.address, filters.location))) return false;
       if (filters.type && !has(h.hospital_type, filters.type)) return false;
       return true;
     });
-  }, [hospitals, filters]);
+  }, [hospitals, filters, emails]);
 
   const patch = async (hosp, payload, msg) => {
     setBusy(true);
@@ -65,7 +68,21 @@ export default function AdminHospitals() {
     }
   };
 
-  const openDetail = async (h) => { setDetail(h); await ensureLoaded(); };
+  const openDetail = async (h) => { setDetail(h); setEditing(false); await ensureLoaded(); };
+
+  const startEdit = () => {
+    setForm({
+      name: detail.name || "", phone: detail.phone || "", address: detail.address || "",
+      city: detail.city || "", state: detail.state || "", pincode: detail.pincode || "",
+      hospital_type: detail.hospital_type || "", beds: detail.beds ?? "", license_number: detail.license_number || "",
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    await patch(detail, { ...form }, "Hospital profile updated");
+    setEditing(false);
+  };
 
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!hospitals) return <LoadingState label="Loading hospitals..." />;
@@ -78,6 +95,7 @@ export default function AdminHospitals() {
       </div>
 
       <div className="flex flex-wrap gap-3">
+        <Input data-testid="hospital-filter-search" className="w-56" placeholder="Search name, email, license" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
         <Select value={filters.status} onValueChange={(v) => setFilters({ ...filters, status: v })}>
           <SelectTrigger data-testid="hospital-filter-status" className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -135,6 +153,20 @@ export default function AdminHospitals() {
                 <DialogTitle className="font-heading flex items-center gap-2">{detail.name || "Hospital"} <VerificationBadge status={detail.verification_status} testId="detail-hospital-status" /></DialogTitle>
                 <DialogDescription>{emails[detail.owner_id] || ""}</DialogDescription>
               </DialogHeader>
+              {editing ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    ["name", "Hospital name"], ["phone", "Mobile"], ["address", "Address"],
+                    ["city", "City"], ["state", "State"], ["pincode", "Pincode"],
+                    ["hospital_type", "Type"], ["beds", "Beds"], ["license_number", "License number"],
+                  ].map(([k, label]) => (
+                    <div key={k} className="space-y-1">
+                      <label className="text-xs text-slate-500">{label}</label>
+                      <Input data-testid={`edit-hospital-${k}`} value={form[k] ?? ""} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
               <dl className="space-y-2 text-sm">
                 {[
                   ["Mobile", detail.phone],
@@ -151,19 +183,30 @@ export default function AdminHospitals() {
                   </div>
                 ))}
               </dl>
+              )}
               <div className="border-t border-slate-100 pt-3 space-y-2">
                 <p className="text-sm font-semibold text-slate-800">License documents</p>
                 <DocumentList docs={docs} ownerId={detail.owner_id} emptyText="No license uploaded by this hospital." />
               </div>
               <div className="flex justify-end gap-2 flex-wrap pt-2">
-                {detail.verification_status !== "under_review" && detail.verification_status !== "verified" && (
-                  <Button data-testid="mark-hospital-under-review-btn" variant="outline" size="sm" disabled={busy} onClick={() => patch(detail, { verification_status: "under_review" }, "Marked under review")}>Mark Under Review</Button>
-                )}
-                {detail.verification_status !== "rejected" && (
-                  <Button data-testid="reject-hospital-btn" variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setRejectFor(detail)}>Reject</Button>
-                )}
-                {detail.verification_status !== "verified" && (
-                  <Button data-testid="approve-hospital-btn" size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => setConfirm(detail)}>Approve Hospital</Button>
+                {editing ? (
+                  <>
+                    <Button data-testid="cancel-edit-hospital-btn" variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+                    <Button data-testid="save-hospital-btn" size="sm" className="bg-blue-600 hover:bg-blue-700" disabled={busy} onClick={saveEdit}>Save Changes</Button>
+                  </>
+                ) : (
+                  <>
+                    <Button data-testid="edit-hospital-btn" variant="outline" size="sm" onClick={startEdit}>Edit Profile</Button>
+                    {detail.verification_status !== "under_review" && detail.verification_status !== "verified" && (
+                      <Button data-testid="mark-hospital-under-review-btn" variant="outline" size="sm" disabled={busy} onClick={() => patch(detail, { verification_status: "under_review" }, "Marked under review")}>Mark Under Review</Button>
+                    )}
+                    {detail.verification_status !== "rejected" && (
+                      <Button data-testid="reject-hospital-btn" variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setRejectFor(detail)}>Reject</Button>
+                    )}
+                    {detail.verification_status !== "verified" && (
+                      <Button data-testid="approve-hospital-btn" size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => setConfirm(detail)}>Approve Hospital</Button>
+                    )}
+                  </>
                 )}
               </div>
             </>
